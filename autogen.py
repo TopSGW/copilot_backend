@@ -1,20 +1,24 @@
 import os
 import json
 import asyncio
+import shutil
+import nest_asyncio
+import re
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from uuid import uuid4
+from typing import Optional, List
 
 import requests
 import openai
-from fastapi import FastAPI, Depends, HTTPException, status, Body
+from fastapi import FastAPI, Depends, HTTPException, status, Body, File, UploadFile
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
 from jose import JWTError, jwt  # python-jose for JWT operations
 from pydantic import BaseModel
 from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from passlib.context import CryptContext
 from dotenv import load_dotenv
-import re
 
 # -------------------------------------------------------------------------
 # AutoGen Imports (replacing CrewAI)
@@ -26,8 +30,6 @@ from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
 from autogen_agentchat.conditions import ExternalTermination, TextMentionTermination
 
-import shutil
-import nest_asyncio
 from llama_index.core import PropertyGraphIndex, SimpleDirectoryReader, VectorStoreIndex
 from llama_index.core.ingestion import IngestionPipeline
 from llama_index.core.node_parser import SentenceSplitter
@@ -36,6 +38,7 @@ from llama_index.llms.openai import OpenAI
 from llama_index.vector_stores.lancedb import LanceDBVectorStore
 
 from vector_rag import VectorRAG
+
 # =============================================================================
 # Configuration & Environment Variables
 # =============================================================================
@@ -49,8 +52,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost/d
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your_jwt_secret_here")  # Change in production!
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = int(os.getenv("ACCESS_TOKEN_EXPIRE_HOURS", "30"))
-OPENAI_API_KEY=os.getenv("OPENAI_API_KEY", "")
-
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 embed_model = OpenAIEmbedding(model_name="text-embedding-3-small")
 extraction_llm = OpenAI(model="gpt-4o-mini", temperature=0.0, seed=SEED)
@@ -58,18 +60,13 @@ generation_llm = OpenAI(model="gpt-4o-mini", temperature=0.3, seed=SEED)
 
 # Load the dataset on Larry Fink
 original_documents = SimpleDirectoryReader("./data/blackrock").load_data()
-# print(len(original_documents))
-
 # --- Step 1: Chunk and store the vector embeddings in LanceDB ---
 shutil.rmtree("./test_lancedb", ignore_errors=True)
-
 openai.api_key = OPENAI_API_KEY
-
 vector_store = LanceDBVectorStore(
     uri="./test_lancedb",
     mode="overwrite",
 )
-
 pipeline = IngestionPipeline(
     transformations=[
         SentenceSplitter(chunk_size=1024, chunk_overlap=32),
@@ -99,7 +96,7 @@ class User(Base):
 Base.metadata.create_all(bind=engine)
 
 # =============================================================================
-# Pydantic Models
+# Pydantic Models (User and New Repository/File Models)
 # =============================================================================
 
 class UserCreate(BaseModel):
@@ -118,6 +115,24 @@ class UserOut(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+
+# --- New Models for Repositories and File Uploads ---
+class RepositoryCreate(BaseModel):
+    name: str
+
+
+class Repository(BaseModel):
+    id: str
+    name: str
+    owner: int  # user id of the repository owner
+
+
+class FileInfo(BaseModel):
+    id: str
+    repository_id: str
+    filename: str
+    file_url: str  # Local path or URL to the file
 
 
 # =============================================================================
@@ -140,9 +155,6 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 # =============================================================================
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """
-    Create a JWT access token.
-    """
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (expires_delta or timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS))
     to_encode.update({"exp": expire})
@@ -167,6 +179,27 @@ def get_db():
 
 app = FastAPI()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+# Enable CORS (adjust allowed origins as needed)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# =============================================================================
+# Repositories and File Upload Setup (In-Memory)
+# =============================================================================
+
+# Base directory for file uploads
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# In-memory storage for repositories and file metadata
+repositories = {}  # repo_id -> { "id": repo_id, "name": ..., "owner": user_id }
+files_db = {}      # repo_id -> list of file info dictionaries
 
 # =============================================================================
 # Helper Functions for User Management
@@ -206,14 +239,11 @@ def get_current_user(
 
 
 # =============================================================================
-# API Endpoints (Signup, Token, Chat)
+# API Endpoints (Signup, Token, Chat, and New File Upload/Repository Endpoints)
 # =============================================================================
 
 @app.post("/signup", response_model=UserOut)
 def signup(user_create: UserCreate, db: Session = Depends(get_db)):
-    """
-    User registration endpoint.
-    """
     if get_user_by_phone(db, user_create.phone_number):
         raise HTTPException(status_code=400, detail="Phone number already registered")
     hashed_pw = get_password_hash(user_create.password)
@@ -228,9 +258,6 @@ def signup(user_create: UserCreate, db: Session = Depends(get_db)):
 def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
 ):
-    """
-    User login endpoint that returns a JWT token.
-    """
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
@@ -245,10 +272,7 @@ def login_for_access_token(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-# =============================================================================
-# AutoGen Integration for Authentication
-# =============================================================================
-
+# --- AutoGen & Chat Endpoints (Unchanged) ---
 class AuthCrewInput(BaseModel):
     user_input: str
 
@@ -284,28 +308,16 @@ async def get_answer(user_input: str) -> str:
 
 authenticate_agent = AssistantAgent("auth_agent", model_client, system_message=system_prompt)
 
-rag_agent = AssistantAgent(name="rag_agent", model_client=model_client, system_message="You are a professional and knowledgeable AI assistant powered by Retrieval-Augmented Generation (RAG). Once the user has successfully signed in or registered, please proceed to address their queries with clarity, accuracy, and promptness.",
-                           tools=[get_answer])
+rag_agent = AssistantAgent(
+    name="rag_agent",
+    model_client=model_client,
+    system_message="You are a professional and knowledgeable AI assistant powered by Retrieval-Augmented Generation (RAG). Once the user has successfully signed in or registered, please proceed to address their queries with clarity, accuracy, and promptness.",
+    tools=[get_answer]
+)
 agent_team = RoundRobinGroupChat([authenticate_agent], max_turns=1)
-# critic_agent = AssistantAgent(
-#     "critic",
-#     model_client=model_client,
-#     system_message="Provide constructive feedback. Respond with 'APPROVE' to when your feedbacks are addressed.",
-# )
-
-rag_team = RoundRobinGroupChat([rag_agent], max_turns=1)
 
 async def run_auth_agent(user_input: str) -> dict:
-    """
-    Uses AutoGen's AssistantAgent to process an authentication conversation.
-    The agent is prompted to ask the user whether they want to 'signup' or 'signin'
-    and then request their phone number and password.
-    It returns a JSON object with keys: 'action', 'phone_number', and 'password'.
-    """
-    task_prompt = (
-        f"The user says: '{user_input}'.\n\n"
-
-    )
+    task_prompt = f"The user says: '{user_input}'.\n\n"
     response = await agent_team.run(task=task_prompt)
     print(response.messages[1].content)
     if "```json" in response.messages[1].content:
@@ -326,23 +338,13 @@ async def auth_crew_endpoint(
     auth_input: AuthCrewInput = Body(...),
     db: Session = Depends(get_db)
 ):
-    """
-    Endpoint to handle authentication using AutoGen.
-    It invokes the AutoGen agent to interpret user instructions, parses the resulting JSON,
-    and performs the requested action (signup or signin).
-    """
     auth_data = await run_auth_agent(auth_input.user_input)
-
     action = auth_data.get("action")
     phone = auth_data.get("phone_number")
     password = auth_data.get("password")
-
     print(auth_data)
-    if action == "" or phone == "" or password =="":
-        return {
-            "message": auth_data.get('instruction'),
-            "status": False
-        }
+    if action == "" or phone == "" or password == "":
+        return {"message": auth_data.get('instruction'), "status": False}
     token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_HOURS)
     if action.lower() == "sign-up":
         if get_user_by_phone(db, phone):
@@ -353,31 +355,24 @@ async def auth_crew_endpoint(
         db.commit()
         db.refresh(new_user)
         token = create_access_token(data={"sub": new_user.phone_number}, expires_delta=token_expires)
-        msg_response = await authenticate_agent.on_messages(        
+        msg_response = await authenticate_agent.on_messages(
             [TextMessage(content="Sign up successful!", source="auth_agent")],
             cancellation_token=CancellationToken(),
         )
-        text_message = TextMessage(content="Sign up successful!", source="rag_agent")
-
     elif action.lower() == "sign-in":
         user = authenticate_user(db, phone, password)
         if not user:
             raise HTTPException(status_code=401, detail="Incorrect phone number or password.")
         token = create_access_token(data={"sub": user.phone_number}, expires_delta=token_expires)
-        msg_response = await authenticate_agent.on_messages(        
+        msg_response = await authenticate_agent.on_messages(
             [TextMessage(content="Sign in successful", source="auth_agent")],
             cancellation_token=CancellationToken(),
         )
-        text_message = TextMessage(content="Sign in successful!", source="rag_agent")
-    return {
-        "message": msg_response.chat_message.content,
-        "token": token,
-        "status": True
-    }
+    return {"message": msg_response.chat_message.content, "token": token, "status": True}
 
 @app.get("/chat")
 async def chat_interface(
-    current_user: User = Depends(get_current_user),     
+    current_user: User = Depends(get_current_user),
     auth_input: AuthCrewInput = Body(...),
 ):
     response = await rag_agent.on_messages(
@@ -385,11 +380,69 @@ async def chat_interface(
         cancellation_token=CancellationToken(),
     )
     print(response.chat_message)
-
-    """
-    A protected endpoint to demonstrate chat integration.
-    """
     return {"message": response.chat_message.content}
+
+# =============================================================================
+# New Repository & File Upload Endpoints
+# =============================================================================
+
+@app.post("/repositories/", response_model=Repository)
+def create_repository(
+    repo: RepositoryCreate,
+    current_user: User = Depends(get_current_user)
+):
+    repo_id = str(uuid4())
+    new_repo = {"id": repo_id, "name": repo.name, "owner": current_user.id}
+    repositories[repo_id] = new_repo
+    files_db[repo_id] = []  # initialize empty list for files
+    return new_repo
+
+@app.get("/repositories/", response_model=List[Repository])
+def list_repositories(current_user: User = Depends(get_current_user)):
+    # Return repositories owned by the current user
+    return [repo for repo in repositories.values() if repo.get("owner") == current_user.id]
+
+@app.post("/repositories/{repo_id}/upload/", response_model=FileInfo)
+async def upload_file_to_repository(
+    repo_id: str,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    # Check repository exists and belongs to current user
+    if repo_id not in repositories or repositories[repo_id].get("owner") != current_user.id:
+        raise HTTPException(status_code=403, detail="Repository not found or not authorized")
+    # Create directory structure: uploads/<phone_number>/repositories/<repo_id>/files
+    repo_upload_dir = os.path.join(
+        UPLOAD_DIR,
+        current_user.phone_number,
+        "repositories",
+        repo_id,
+        "files"
+    )
+    os.makedirs(repo_upload_dir, exist_ok=True)
+    file_location = os.path.join(repo_upload_dir, file.filename)
+    content = await file.read()
+    with open(file_location, "wb") as f:
+        f.write(content)
+    file_id = str(uuid4())
+    file_info = {
+        "id": file_id,
+        "repository_id": repo_id,
+        "filename": file.filename,
+        "file_url": file_location,
+    }
+    files_db[repo_id].append(file_info)
+    return file_info
+
+@app.get("/repositories/{repo_id}/files/", response_model=List[FileInfo])
+def list_files_in_repository(
+    repo_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    if repo_id not in repositories or repositories[repo_id].get("owner") != current_user.id:
+        raise HTTPException(status_code=403, detail="Repository not found or not authorized")
+    return files_db.get(repo_id, [])
+
 # =============================================================================
 # Public Endpoint
 # =============================================================================
