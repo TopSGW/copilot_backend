@@ -1,0 +1,133 @@
+import json
+from fastapi import WebSocket, HTTPException, Depends
+from sqlalchemy.orm import Session
+from autogen_agentchat.messages import TextMessage
+from autogen_core import CancellationToken
+from datetime import timedelta
+
+from databases.database import get_db, User
+from auth import get_current_user, create_access_token, authenticate_user, get_password_hash, get_user_by_phone
+from config.config import ACCESS_TOKEN_EXPIRE_HOURS
+from rag.rag import run_auth_agent, vector_rag, authenticate_agent
+
+async def websocket_auth_dialogue(websocket: WebSocket):
+    await websocket.accept()
+    db = next(get_db())
+    print("Auth WebSocket accepted")
+    websocket_open = True
+    try:
+        while websocket_open:
+            try:
+                data = await websocket.receive_text()
+                print("Received auth data:", data)
+            except Exception as e:
+                print("Auth receive error or disconnect:", e)
+                websocket_open = False
+                break
+
+            auth_input_data = json.loads(data)
+            user_input = auth_input_data.get("user_input", "")
+            auth_data = await run_auth_agent(user_input)
+            print("Auth agent returned:", auth_data)
+            action = auth_data.get("action")
+            phone = auth_data.get("user_number") or auth_data.get("phone_number")
+            password = auth_data.get("password")
+
+            if action == "" or phone == "" or password == "":
+                await websocket.send_json({
+                    "message": auth_data.get("instruction"),
+                    "status": False
+                })
+                continue
+
+            token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+            if action.lower() == "sign-up":
+                if get_user_by_phone(db, phone):
+                    await websocket.send_json({
+                        "error": "Phone number already registered. Please sign in."
+                    })
+                    continue
+                hashed_pw = get_password_hash(password)
+                new_user = User(phone_number=phone, hashed_password=hashed_pw)
+                db.add(new_user)
+                db.commit()
+                db.refresh(new_user)
+                token = create_access_token(
+                    data={"sub": new_user.phone_number},
+                    expires_delta=token_expires
+                )
+                msg_response = await authenticate_agent.on_messages(
+                    [TextMessage(content="Sign up successful!", source="auth_agent")],
+                    cancellation_token=CancellationToken(),
+                )
+            elif action.lower() == "sign-in":
+                user = authenticate_user(db, phone, password)
+                if not user:
+                    await websocket.send_json({
+                        "error": "Incorrect phone number or password."
+                    })
+                    continue
+                token = create_access_token(
+                    data={"sub": user.phone_number},
+                    expires_delta=token_expires
+                )
+                msg_response = await authenticate_agent.on_messages(
+                    [TextMessage(content="Sign in successful", source="auth_agent")],
+                    cancellation_token=CancellationToken(),
+                )
+            else:
+                await websocket.send_json({
+                    "message": auth_data.get("instruction"),
+                    "status": False
+                })
+                continue
+
+            print("Sending auth response with token.")
+            await websocket.send_json({
+                "message": msg_response.chat_message.content,
+                "token": token,
+                "status": True
+            })
+    except Exception as e:
+        print("Auth endpoint exception:", e)
+    finally:
+        db.close()
+        if websocket_open:
+            await websocket.close()
+        print("Auth WebSocket closed.")
+
+async def websocket_chat(websocket: WebSocket, token: str):
+    try:
+        user = await get_current_user(token)
+    except HTTPException as e:
+        print(f"Invalid token: {e.detail}. Accepting connection to send error message.")
+        await websocket.accept()
+        await websocket.send_json({"error": e.detail})
+        await websocket.close(code=1008)
+        return
+
+    await websocket.accept()
+    print(f"Chat WebSocket accepted for user: {user.phone_number}")
+    websocket_open = True
+    while websocket_open:
+        try:
+            data = await websocket.receive_text()
+            print("Received data:", data)
+        except Exception as e:
+            print("Receive error or disconnect:", e)
+            websocket_open = False
+            break
+
+        try:
+            auth_input_data = json.loads(data)
+            user_input = auth_input_data.get("user_input", "")
+            print("Processing user input:", user_input)
+            response = vector_rag.run(user_input)
+            print("Response from vector_rag:", response)
+            await websocket.send_json({"message": response})
+        except Exception as e:
+            print("Error processing message:", e)
+            await websocket.send_json({"message": "An error occurred processing your request."})
+    print("Closing chat WebSocket.")
+    if websocket_open:
+        await websocket.close()
