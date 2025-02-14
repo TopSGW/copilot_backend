@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from typing import List
 from datetime import datetime
 import logging
@@ -9,6 +9,8 @@ from databases.database import Repository, get_db
 from auth import get_current_user, User
 
 router = APIRouter(prefix="/repositories", tags=["repositories"])
+
+logger = logging.getLogger(__name__)
 
 class RepositoryCreate(BaseModel):
     name: str
@@ -20,8 +22,9 @@ class RepositoryResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
 
 @router.post("/", response_model=RepositoryResponse)
 def create_repository(
@@ -37,25 +40,23 @@ def create_repository(
 
 @router.get("/", response_model=List[RepositoryResponse])
 async def list_repositories(
-    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     try:
-        # Log the request headers and body for debugging
-        headers = request.headers
-        body = await request.body()
-        logging.info(f"Request headers: {headers}")
-        logging.info(f"Request body: {body}")
-
-        # Log the current user information
-        logging.info(f"Current user: {current_user}")
-
+        logger.info(f"Listing repositories for user: {current_user.phone_number}")
         repositories = db.query(Repository).filter(Repository.phone_number == current_user.phone_number).all()
-        return repositories
+        logger.info(f"Retrieved {len(repositories)} repositories")
+
+        response_data = [RepositoryResponse.model_validate(repo) for repo in repositories]
+        logger.info("Successfully validated repository data")
+        return response_data
+    except ValidationError as ve:
+        logger.error(f"Validation error: {str(ve)}")
+        raise HTTPException(status_code=422, detail=f"Data validation error: {str(ve)}")
     except Exception as e:
-        logging.error(f"An error occurred while fetching repositories: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occurred while fetching repositories: {str(e)}")
+        logger.error(f"An error occurred while fetching repositories: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal server error occurred")
 
 @router.get("/{repository_id}", response_model=RepositoryResponse)
 def get_repository(
