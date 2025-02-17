@@ -22,12 +22,13 @@ class FileMetadata(BaseModel):
     upload_date: datetime
     last_modified: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
 
 class FileResponse(BaseModel):
     message: str
-    file_metadata: FileMetadata
+    file_metadata: List[FileMetadata]
 
 class FileList(BaseModel):
     repository_id: int
@@ -35,9 +36,9 @@ class FileList(BaseModel):
     files: List[FileMetadata]
 
 @router.post("/{repository_id}/upload/", response_model=FileResponse)
-async def upload_file_to_repository(
+async def upload_files_to_repository(
     repository_id: int,
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -50,28 +51,32 @@ async def upload_file_to_repository(
 
     repo_upload_dir = os.path.join(UPLOAD_DIR, current_user.phone_number, str(repository_id))
     os.makedirs(repo_upload_dir, exist_ok=True)
-    file_location = os.path.join(repo_upload_dir, file.filename)
-    
-    content = await file.read()
-    with open(file_location, "wb") as f:
-        f.write(content)
 
-    file_record = FileRecord(
-        filename=file.filename,
-        original_filename=file.filename,
-        file_size=len(content),
-        mime_type=file.content_type,
-        phone_number=current_user.phone_number,
-        repository_id=repository.id,
-        storage_path=file_location
-    )
-    db.add(file_record)
-    db.commit()
-    db.refresh(file_record)
+    uploaded_files = []
+    for file in files:
+        file_location = os.path.join(repo_upload_dir, file.filename)
+        
+        content = await file.read()
+        with open(file_location, "wb") as f:
+            f.write(content)
+
+        file_record = FileRecord(
+            filename=file.filename,
+            original_filename=file.filename,
+            file_size=len(content),
+            mime_type=file.content_type,
+            phone_number=current_user.phone_number,
+            repository_id=repository.id,
+            storage_path=file_location
+        )
+        db.add(file_record)
+        db.commit()
+        db.refresh(file_record)
+        uploaded_files.append(FileMetadata.model_validate(file_record))
 
     return FileResponse(
-        message="File uploaded successfully",
-        file_metadata=FileMetadata.from_orm(file_record)
+        message=f"{len(uploaded_files)} file(s) uploaded successfully",
+        file_metadata=uploaded_files
     )
 
 @router.get("/{repository_id}/", response_model=FileList)
@@ -91,7 +96,7 @@ def list_files_in_repository(
     return FileList(
         repository_id=repository.id,
         phone_number=current_user.phone_number,
-        files=[FileMetadata.from_orm(file) for file in files]
+        files=[FileMetadata.model_validate(file) for file in files]
     )
 
 @router.delete("/{repository_id}/{filename}", response_model=dict)
@@ -147,4 +152,4 @@ def get_file_metadata(
     if not file_record:
         raise HTTPException(status_code=404, detail="File not found")
 
-    return FileMetadata.from_orm(file_record)
+    return FileMetadata.model_validate(file_record)
