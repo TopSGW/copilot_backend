@@ -4,6 +4,13 @@ from sqlalchemy.orm import Session
 from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
 from datetime import timedelta
+from llama_index.core import SimpleDirectoryReader
+from llama_index.vector_stores.milvus import MilvusVectorStore
+
+from llama_index.core.ingestion import IngestionPipeline
+from llama_index.core.node_parser import SentenceSplitter
+from llama_index.embeddings.openai import OpenAIEmbedding
+
 
 from databases.database import get_db, User
 from auth import get_current_user, create_access_token, authenticate_user, get_password_hash, get_user_by_phone
@@ -60,6 +67,24 @@ async def websocket_auth_dialogue(websocket: WebSocket):
                     [TextMessage(content="Sign up successful!", source="auth_agent")],
                     cancellation_token=CancellationToken(),
                 )
+                documents = SimpleDirectoryReader("./data/blackrock").load_data()
+                vector_store = MilvusVectorStore(
+                    uri="./milvus_demo.db", 
+                    dim=1536, 
+                    overwrite=True, 
+                    collection_name=f"user_{new_user.id}",
+                    text_key="text",
+                    metric_type="COSINE",
+                    index_type="IVF_FLAT",
+                )
+                pipeline = IngestionPipeline(
+                    transformations=[
+                        SentenceSplitter(chunk_size=2048, chunk_overlap=32),
+                        OpenAIEmbedding(),
+                    ],
+                    vector_store=vector_store,
+                )
+                pipeline.run(documents = documents)
             elif action.lower() == "sign-in":
                 user = authenticate_user(db, phone, password)
                 if not user:

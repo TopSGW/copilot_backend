@@ -5,6 +5,13 @@ from pydantic import BaseModel
 from typing import List
 from datetime import datetime
 
+from llama_index.core import SimpleDirectoryReader
+from llama_index.vector_stores.milvus import MilvusVectorStore
+
+from llama_index.core.ingestion import IngestionPipeline
+from llama_index.core.node_parser import SentenceSplitter
+from llama_index.embeddings.openai import OpenAIEmbedding
+
 from databases.database import FileRecord, Repository, get_db
 from auth import get_current_user, User
 from config.config import UPLOAD_DIR
@@ -73,7 +80,17 @@ async def upload_files_to_repository(
         db.commit()
         db.refresh(file_record)
         uploaded_files.append(FileMetadata.model_validate(file_record))
-
+        converted_file_location = file_location.replace("\\", "/")
+        documents = SimpleDirectoryReader(input_files=[converted_file_location]).load_data()
+        vector_store = MilvusVectorStore(uri="./milvus_demo.db", dim=1536, overwrite=False)
+        pipe_line = IngestionPipeline(
+            transformations=[
+                SentenceSplitter(chunk_size=2048, chunk_overlap=32),
+                OpenAIEmbedding(),
+            ],
+            vector_store=vector_store,
+        )
+        pipe_line.run(documents=documents)
     return FileResponse(
         message=f"{len(uploaded_files)} file(s) uploaded successfully",
         file_metadata=uploaded_files
