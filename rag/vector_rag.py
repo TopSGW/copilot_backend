@@ -1,37 +1,66 @@
 import os
 
-import lancedb
 from dotenv import load_dotenv
 import ell
 from openai import OpenAI
+from llama_index.embeddings.ollama import OllamaEmbedding
+from pymilvus import MilvusClient, Collection, connections
 
+import json
 import prompts
 
 load_dotenv()
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-MODEL_NAME = "gpt-4o-mini"
 SEED = 42
+
+# Configure Ollama embedding model
+embed_model = OllamaEmbedding(
+    model_name="llama3.3:70b",
+    base_url="http://localhost:11434",
+    ollama_additional_kwargs={"mirostat": 0},
+)
+
+# Configure OpenAI client for Ollama
+llm_client = OpenAI(
+    base_url="http://localhost:11434/v1",
+    api_key="ollama",  # Ollama doesn't need a real API key
+)
+
+# Register the model with Ellama
+MODEL = "llama3.3:70b"
+ell.config.register_model(MODEL, llm_client)
 
 
 class VectorRAG:
-    def __init__(self, db_path: str, table_name: str = "vectors"):
+    def __init__(self, db_path: str, collection_name: str = "llamacollection"):
         load_dotenv()
-        self.openai_client = OpenAI(api_key=OPENAI_API_KEY)
-        self.db = lancedb.connect(db_path)
-        self.table = self.db.open_table(table_name)
+        self.embed_model = embed_model
+        self.db = MilvusClient(db_path)
+        self.collection_name = collection_name
 
     def query(self, query_vector: list, limit: int = 10) -> list:
-        search_result = (
-            self.table.search(query_vector).metric("cosine").select(["text"]).limit(limit)
-        ).to_list()
-        return search_result if search_result else None
+        search_res = self.db.search(
+            collection_name=self.collection_name,
+            data=[
+                query_vector
+            ],
+            limit=limit,
+            output_fields=["_node_content"]
+        )
+        retrieved_lines_with_distances = [
+           (json.loads(res["entity"]['_node_content'])['text'], res["distance"]) for res in search_res[0]
+        ]
+        context = "\n".join(
+            [line_with_distance[0] for line_with_distance in retrieved_lines_with_distances]
+        )
+        return context if context else None
 
     def embed(self, query: str) -> list:
-        # For now just using an OpenAI embedding model
-        response = self.openai_client.embeddings.create(model="text-embedding-3-small", input=query)
-        return response.data[0].embedding
+        # Using Ollama embedding model
+        embedding = self.embed_model.get_text_embedding(query)
+        return embedding
 
-    @ell.simple(model=MODEL_NAME, temperature=0.3, client=OpenAI(api_key=OPENAI_API_KEY), seed=SEED)
+    @ell.simple(model=MODEL, temperature=0.3)
     def retrieve(self, question: str, context: str) -> str:
         return [
             ell.system(prompts.RAG_SYSTEM_PROMPT),
@@ -45,7 +74,7 @@ class VectorRAG:
 
 
 if __name__ == "__main__":
-    vector_rag = VectorRAG("./test_lancedb")
+    vector_rag = VectorRAG("./milvus_demo.db")
     question = "Who are the founders of BlackRock? Return the names as a numbered list."
     response = vector_rag.run(question)
     print(f"Q1: {question}\n\n{response}")
