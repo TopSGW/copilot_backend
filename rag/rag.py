@@ -32,7 +32,7 @@ Example output:
 ```
 """
 
-vector_rag = VectorRAG("./test_lancedb")
+vector_rag = VectorRAG("./milvus_demo.db")
 
 async def get_answer(user_input: str) -> str:
     return {"query_result": vector_rag.run(user_input)}
