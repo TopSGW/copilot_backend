@@ -82,7 +82,7 @@ async def upload_files_to_repository(
         uploaded_files.append(FileMetadata.model_validate(file_record))
         converted_file_location = file_location.replace("\\", "/")
         documents = SimpleDirectoryReader(input_files=[converted_file_location]).load_data()
-        vector_store = MilvusVectorStore(uri="./milvus_demo.db", dim=1536, overwrite=False)
+        vector_store = MilvusVectorStore(uri="./milvus_demo.db", dim=1536, overwrite=False, collection_name=f"user_{current_user.id}")
         pipe_line = IngestionPipeline(
             transformations=[
                 SentenceSplitter(chunk_size=2048, chunk_overlap=32),
@@ -142,7 +142,25 @@ async def delete_file(
 
     db.delete(file_record)
     db.commit()
+    converted_file_location = file_record.storage_path.replace("\\", "/")
+    documents = SimpleDirectoryReader(input_files=[converted_file_location]).load_data()
+    vector_store = MilvusVectorStore(uri="./milvus_demo.db", dim=1536, overwrite=False, collection_name=f"user_{current_user.id}")
+    ids = vector_store.client.query(
+        collection_name=f"user_{current_user.id}",
+        filter="id != ''",
+        output_fields=["file_path", "doc_id"]    
+    )
+    delete_node_ids = []
 
+    for item in ids:
+        id = item.get('id')
+        file_path = item.get('file_path')
+        doc_id = item.get('doc_id')
+        print(f"{id} {file_path} {doc_id}")
+        if file_path == converted_file_location:
+            delete_node_ids.append(id)
+
+    vector_store.delete_nodes(delete_node_ids)
     return {
         "message": "File deleted successfully",
         "filename": filename
