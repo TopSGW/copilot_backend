@@ -135,6 +135,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     await websocket.accept()
     print(f"Chat WebSocket accepted for user: {user.phone_number}")
     websocket_open = True
+    vector_rag = VectorRAG(db_path="./milvus_demo.db", collection_name=f"user_{user.id}")
     while websocket_open:
         try:
             data = await websocket.receive_text()
@@ -148,7 +149,6 @@ async def websocket_chat(websocket: WebSocket, token: str):
             auth_input_data = json.loads(data)
             user_input = auth_input_data.get("user_input", "")
             print("Processing user input:", user_input)
-            vector_rag = VectorRAG(db_path="./milvus_demo.db", collection_name=f"user_{user.id}")
             response = vector_rag.run(user_input)
             print("Response from vector_rag:", response)
             await websocket.send_json({"message": response})
