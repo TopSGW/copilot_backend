@@ -211,7 +211,14 @@ async def websocket_chat(websocket: WebSocket, token: str):
     property_graph_store = NebulaPropertyGraphStore(
         space=f'space_{user.id}'
     )
-    graph_vec_store = SimpleVectorStore.from_persist_path("./storage_graph/nebula_vec_store.json")
+    graph_vec_store = MilvusVectorStore(
+        uri="./milvus_demo.db", 
+        collection_name=f"space_{user.id}",
+        dim=1536, 
+        overwrite=False,         
+        metric_type="COSINE",
+        index_type="IVF_FLAT",
+    )
 
     graph_index = PropertyGraphIndex.from_existing(
         property_graph_store=property_graph_store,
