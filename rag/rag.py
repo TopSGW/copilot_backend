@@ -32,18 +32,13 @@ Example output:
 ```
 """
 
-vector_rag = VectorRAG("./milvus_demo.db")
-
-async def get_answer(user_input: str) -> str:
-    return {"query_result": vector_rag.run(user_input)}
-
 authenticate_agent = AssistantAgent("auth_agent", model_client, system_message=system_prompt)
-rag_agent = AssistantAgent(
-    name="rag_agent",
-    model_client=model_client,
-    system_message="You are a professional and knowledgeable AI assistant powered by Retrieval-Augmented Generation (RAG). Once the user has successfully signed in or registered, please proceed to address their queries with clarity, accuracy, and promptness. Generally, please answer with get_answer function calling because you are rag assistant for local documents. However, if user ask general question, you can ask LLM",
-    tools=[get_answer]
-)
+# rag_agent = AssistantAgent(
+#     name="rag_agent",
+#     model_client=model_client,
+#     system_message="You are a professional and knowledgeable AI assistant powered by Retrieval-Augmented Generation (RAG). Once the user has successfully signed in or registered, please proceed to address their queries with clarity, accuracy, and promptness. Generally, please answer with get_answer function calling because you are rag assistant for local documents. However, if user ask general question, you can ask LLM",
+#     tools=[get_answer]
+# )
 agent_team = RoundRobinGroupChat([authenticate_agent], max_turns=1)
 
 async def run_auth_agent(user_input: str) -> dict:

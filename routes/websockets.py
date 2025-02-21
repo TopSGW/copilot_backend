@@ -15,7 +15,8 @@ from llama_index.embeddings.openai import OpenAIEmbedding
 from databases.database import get_db, User
 from auth import get_current_user, create_access_token, authenticate_user, get_password_hash, get_user_by_phone
 from config.config import ACCESS_TOKEN_EXPIRE_HOURS
-from rag.rag import run_auth_agent, vector_rag, authenticate_agent
+from rag.rag import run_auth_agent, authenticate_agent
+from rag.vector_rag import VectorRAG
 
 async def websocket_auth_dialogue(websocket: WebSocket):
     await websocket.accept()
@@ -147,6 +148,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
             auth_input_data = json.loads(data)
             user_input = auth_input_data.get("user_input", "")
             print("Processing user input:", user_input)
+            vector_rag = VectorRAG(db_path="./milvus_demo.db", collection_name=f"user_{user.id}")
             response = vector_rag.run(user_input)
             print("Response from vector_rag:", response)
             await websocket.send_json({"message": response})
