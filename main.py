@@ -13,8 +13,8 @@ from routes.files import router as files_router
 nest_asyncio.apply()
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+# logging.basicConfig(level=logging.DEBUG)
+# logger = logging.getLogger(__name__)
 
 app = FastAPI()
 

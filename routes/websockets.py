@@ -177,6 +177,8 @@ async def websocket_chat(websocket: WebSocket, token: str):
         system_prompt=prompts.RAG_SYSTEM_PROMPT,
         llm=Settings.llm
     )
+    message = chat_engine.chat(message="Who is the Larry?")
+    print(message)
     # vector_rag = VectorRAG(db_path="./milvus_demo.db", collection_name=f"user_{user.id}")
     while websocket_open:
         try:
