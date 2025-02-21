@@ -50,10 +50,9 @@ class VectorRAG:
         retrieved_lines_with_distances = [
            (json.loads(res["entity"]['_node_content'])['text'], res["distance"]) for res in search_res[0]
         ]
-        context = "\n".join(
-            [line_with_distance[0] for line_with_distance in retrieved_lines_with_distances]
-        )
-        return context if context else None
+        context_list = [line_with_distance[0] for line_with_distance in retrieved_lines_with_distances]
+
+        return context_list if context_list else None
 
     def embed(self, query: str) -> list:
         # Using Ollama embedding model

@@ -232,7 +232,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
         system_prompt=prompts.RAG_SYSTEM_PROMPT,
         memory=memory
     )
-    # vector_rag = VectorRAG(db_path="./milvus_demo.db", collection_name=f"user_{user.id}")
+    vector_rag = VectorRAG(db_path="./milvus_demo.db", collection_name=f"user_{user.id}")
     while websocket_open:
         try:
             data = await websocket.receive_text()
@@ -251,6 +251,8 @@ async def websocket_chat(websocket: WebSocket, token: str):
             graph_response = graph_chat_engine.chat(message=user_input)
             print("Response from graph_rag:", graph_response)
 
+            pure_vector_response = vector_rag.run(question=user_input)
+            print("pure vector response:", pure_vector_response)
             if str(response) == 'Empty Response':
                 await websocket.send_json({"message": "There is no provided documents. Please upload documents."})
             else:    
