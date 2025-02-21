@@ -150,6 +150,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     await websocket.accept()
     print(f"Chat WebSocket accepted for user: {user.phone_number}")
     websocket_open = True
+    documents = SimpleDirectoryReader("./data/blackrock").load_data()
     vector_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
         collection_name=f"user_{user.id}",
@@ -159,6 +160,14 @@ async def websocket_chat(websocket: WebSocket, token: str):
         metric_type="COSINE",
         index_type="IVF_FLAT",
     )
+    pipeline = IngestionPipeline(
+        transformations=[
+            SentenceSplitter(chunk_size=2048, chunk_overlap=32),
+            OpenAIEmbedding(),
+        ],
+        vector_store=vector_store,
+    )
+    pipeline.run(documents=documents)
     vector_index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
     memory = ChatMemoryBuffer.from_defaults(token_limit=1500)
 
