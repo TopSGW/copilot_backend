@@ -155,8 +155,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
         uri="./milvus_demo.db", 
         collection_name=f"user_{user.id}",
         dim=1536, 
-        overwrite=False, 
-        text_key="text",
+        overwrite=False,         
         metric_type="COSINE",
         index_type="IVF_FLAT",
     )
