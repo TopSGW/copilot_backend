@@ -7,7 +7,7 @@ def main():
     config.max_connection_pool_size = 10
 
     connection_pool = ConnectionPool()
-    if not connection_pool.init([('127.0.0.1', 9559)], config):
+    if not connection_pool.init([('127.0.0.1', 9779)], config):
         print("Failed to initialize the connection pool!")
         return
 
