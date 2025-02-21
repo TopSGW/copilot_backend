@@ -1,15 +1,21 @@
+import os
 import json
 from fastapi import WebSocket, HTTPException, Depends
 from sqlalchemy.orm import Session
 from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
 from datetime import timedelta
-from llama_index.core import SimpleDirectoryReader
+from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
 from llama_index.vector_stores.milvus import MilvusVectorStore
 
 from llama_index.core.ingestion import IngestionPipeline
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.core.memory import ChatMemoryBuffer
+from llama_index.core import PropertyGraphIndex, Settings
+from llama_index.llms.ollama import Ollama
+
+import prompts
 
 
 from databases.database import get_db, User
@@ -17,6 +23,14 @@ from auth import get_current_user, create_access_token, authenticate_user, get_p
 from config.config import ACCESS_TOKEN_EXPIRE_HOURS
 from rag.rag import run_auth_agent, authenticate_agent
 from rag.vector_rag import VectorRAG
+
+Settings.llm = Ollama(
+    model="llama3.3:70b",
+    temperature=0.3,
+    request_timeout=120.0,
+    base_url="http://localhost:11434"
+)
+
 
 async def websocket_auth_dialogue(websocket: WebSocket):
     await websocket.accept()
@@ -68,24 +82,25 @@ async def websocket_auth_dialogue(websocket: WebSocket):
                     [TextMessage(content="Sign up successful!", source="auth_agent")],
                     cancellation_token=CancellationToken(),
                 )
-                documents = SimpleDirectoryReader("./data/blackrock").load_data()
-                vector_store = MilvusVectorStore(
-                    uri="./milvus_demo.db", 
-                    dim=1536, 
-                    overwrite=True, 
-                    collection_name=f"user_{new_user.id}",
-                    text_key="text",
-                    metric_type="COSINE",
-                    index_type="IVF_FLAT",
-                )
-                pipeline = IngestionPipeline(
-                    transformations=[
-                        SentenceSplitter(chunk_size=2048, chunk_overlap=32),
-                        OpenAIEmbedding(),
-                    ],
-                    vector_store=vector_store,
-                )
-                pipeline.run(documents = documents)
+                # documents = SimpleDirectoryReader("./data/blackrock").load_data()
+                # if os.path('./milvus_demo.db')
+                # vector_store = MilvusVectorStore(
+                #     uri="./milvus_demo.db", 
+                #     dim=1536, 
+                #     overwrite=True, 
+                #     collection_name=f"user_{new_user.id}",
+                #     text_key="text",
+                #     metric_type="COSINE",
+                #     index_type="IVF_FLAT",
+                # )
+                # pipeline = IngestionPipeline(
+                #     transformations=[
+                #         SentenceSplitter(chunk_size=2048, chunk_overlap=32),
+                #         OpenAIEmbedding(),
+                #     ],
+                #     vector_store=vector_store,
+                # )
+                # pipeline.run(documents = documents)
             elif action.lower() == "sign-in":
                 user = authenticate_user(db, phone, password)
                 if not user:
@@ -135,7 +150,25 @@ async def websocket_chat(websocket: WebSocket, token: str):
     await websocket.accept()
     print(f"Chat WebSocket accepted for user: {user.phone_number}")
     websocket_open = True
-    vector_rag = VectorRAG(db_path="./milvus_demo.db", collection_name=f"user_{user.id}")
+    vector_store = MilvusVectorStore(
+        uri="./milvus_demo.db", 
+        collection_name=f"user_{user.id}",
+        dim=1536, 
+        overwrite=False, 
+        text_key="text",
+        metric_type="COSINE",
+        index_type="IVF_FLAT",
+    )
+    vector_index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
+    memory = ChatMemoryBuffer.from_defaults(token_limit=1500)
+
+    chat_engine = vector_index.as_chat_engine(
+        chat_mode='context',
+        memory=memory,
+        system_prompt=prompts.RAG_SYSTEM_PROMPT,
+        llm=Settings.llm
+    )
+    # vector_rag = VectorRAG(db_path="./milvus_demo.db", collection_name=f"user_{user.id}")
     while websocket_open:
         try:
             data = await websocket.receive_text()
@@ -149,7 +182,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
             auth_input_data = json.loads(data)
             user_input = auth_input_data.get("user_input", "")
             print("Processing user input:", user_input)
-            response = vector_rag.run(user_input)
+            response = chat_engine.chat(message=user_input)
             print("Response from vector_rag:", response)
             await websocket.send_json({"message": response})
         except Exception as e:
