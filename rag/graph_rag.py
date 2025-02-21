@@ -16,7 +16,7 @@ nest_asyncio.apply()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 class GraphRAG:
-    def __init__(self):
+    def __init__(self, space_name: str):
         load_dotenv()
         
         # Load Nebula environment variables
@@ -28,6 +28,7 @@ class GraphRAG:
         self.setup_graph_index()
         self.memory = None
         self.chat_engine = None
+        self.space_name = space_name
 
     def setup_llm(self):
         """Configure LLM and embedding settings"""
@@ -48,7 +49,7 @@ class GraphRAG:
         vec_store = SimpleVectorStore.from_persist_path("./storage_graph/nebula_vec_store.json")
         
         property_graph_store = NebulaPropertyGraphStore(
-            space="llamaindex_nebula_property_graph",
+            space=self.space_name,
         )
 
         self.graph_index = PropertyGraphIndex.from_existing(

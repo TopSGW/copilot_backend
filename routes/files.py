@@ -5,16 +5,27 @@ from pydantic import BaseModel
 from typing import List
 from datetime import datetime
 
-from llama_index.core import SimpleDirectoryReader
+from llama_index.core import SimpleDirectoryReader, PropertyGraphIndex, Settings
 from llama_index.vector_stores.milvus import MilvusVectorStore
+from llama_index.core.vector_stores.simple import SimpleVectorStore
+from llama_index.llms.ollama import Ollama
 
 from llama_index.core.ingestion import IngestionPipeline
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.graph_stores.nebula import NebulaPropertyGraphStore
 
 from databases.database import FileRecord, Repository, get_db
 from auth import get_current_user, User
 from config.config import UPLOAD_DIR
+
+Settings.llm = Ollama(
+    model="llama3.3:70b",
+    temperature=0.3,
+    request_timeout=120.0,
+    base_url="http://localhost:11434"
+)
+
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -64,12 +75,23 @@ async def upload_files_to_repository(
         dim=1536, overwrite=False, 
         collection_name=f"user_{current_user.id}"
     )
+
     pipe_line = IngestionPipeline(
         transformations=[
             SentenceSplitter(chunk_size=2048, chunk_overlap=32),
             OpenAIEmbedding(),
         ],
         vector_store=vector_store,
+    )
+    property_graph_store = NebulaPropertyGraphStore(
+        space=f'space_{current_user.id}'
+    )
+    graph_vec_store = SimpleVectorStore.from_persist_path("./storage_graph/nebula_vec_store.json")
+
+    graph_index = PropertyGraphIndex.from_existing(
+        property_graph_store=property_graph_store,
+        vector_store=graph_vec_store,
+        llm=Settings._llm,
     )
 
     uploaded_files = []
@@ -97,6 +119,10 @@ async def upload_files_to_repository(
         print(f"converted_file_location: {converted_file_location}")
         documents = SimpleDirectoryReader(input_files=[converted_file_location]).load_data()
         pipe_line.run(documents=documents)
+
+        for doc in documents:
+            graph_index.insert(document=doc)
+
     return FileResponse(
         message=f"{len(uploaded_files)} file(s) uploaded successfully",
         file_metadata=uploaded_files

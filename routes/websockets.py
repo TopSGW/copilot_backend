@@ -14,6 +14,8 @@ from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core import PropertyGraphIndex, Settings
 from llama_index.llms.ollama import Ollama
+from llama_index.graph_stores.nebula import NebulaPropertyGraphStore
+from llama_index.core.vector_stores.simple import SimpleVectorStore
 
 import prompts
 
@@ -24,6 +26,9 @@ from config.config import ACCESS_TOKEN_EXPIRE_HOURS
 from rag.rag import run_auth_agent, authenticate_agent
 from rag.vector_rag import VectorRAG
 
+from nebula3.Config import Config
+from nebula3.gclient.net import ConnectionPool
+
 Settings.llm = Ollama(
     model="llama3.3:70b",
     temperature=0.3,
@@ -31,6 +36,31 @@ Settings.llm = Ollama(
     base_url="http://localhost:11434"
 )
 
+def set_graph_space(space_name: str):
+    config = Config()
+    config.max_connection_pool_size = 10
+
+    connection_pool = ConnectionPool()
+    if not connection_pool.init([('127.0.0.1', 9669)], config):
+        print("Failed to initialize the connection pool!")
+        return
+
+    # Create a session with the Nebula Graph server
+    session = connection_pool.get_session('root', 'nebula')
+    
+    try:
+        # Define your nGQL command
+        query = f'CREATE SPACE IF NOT EXISTS {space_name}(vid_type=FIXED_STRING(256));'
+        # Execute the command
+        result = session.execute(query)
+        print("Query executed successfully!")
+        print(result)
+    except Exception as e:
+        print("Error executing query:", e)
+    finally:
+        # Always release the session and close the connection pool
+        session.release()
+        connection_pool.close()
 
 async def websocket_auth_dialogue(websocket: WebSocket):
     await websocket.accept()
@@ -159,6 +189,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
         metric_type="COSINE",
         index_type="IVF_FLAT",
     )
+    set_graph_space(space_name=f'space_{user.id}')
     # pipeline = IngestionPipeline(
     #     transformations=[
     #         SentenceSplitter(chunk_size=2048, chunk_overlap=32),
@@ -176,6 +207,24 @@ async def websocket_chat(websocket: WebSocket, token: str):
         system_prompt=prompts.RAG_SYSTEM_PROMPT,
         llm=Settings.llm
     )
+
+    property_graph_store = NebulaPropertyGraphStore(
+        space=f'space_{user.id}'
+    )
+    graph_vec_store = SimpleVectorStore.from_persist_path("./storage_graph/nebula_vec_store.json")
+
+    graph_index = PropertyGraphIndex.from_existing(
+        property_graph_store=property_graph_store,
+        vector_store=graph_vec_store,
+        llm=Settings._llm,
+    )
+
+    graph_chat_engine = graph_index.as_chat_engine(
+        chat_mode='context',
+        llm=Settings._llm,
+        system_prompt=prompts.RAG_SYSTEM_PROMPT,
+        memory=memory
+    )
     # vector_rag = VectorRAG(db_path="./milvus_demo.db", collection_name=f"user_{user.id}")
     while websocket_open:
         try:
@@ -192,6 +241,8 @@ async def websocket_chat(websocket: WebSocket, token: str):
             print("Processing user input:", user_input)
             response = chat_engine.chat(message=user_input)
             print("Response from vector_rag:", response)
+            graph_response = graph_chat_engine.chat(message=user_input)
+            print("Response from graph_rag:", response)
             await websocket.send_json({"message": str(response)})
         except Exception as e:
             print("Error processing message:", e)
