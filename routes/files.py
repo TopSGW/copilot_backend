@@ -59,6 +59,19 @@ async def upload_files_to_repository(
     repo_upload_dir = os.path.join(UPLOAD_DIR, current_user.phone_number, str(repository_id))
     os.makedirs(repo_upload_dir, exist_ok=True)
 
+    vector_store = MilvusVectorStore(
+        uri="./milvus_demo.db", 
+        dim=1536, overwrite=False, 
+        collection_name=f"user_{current_user.id}"
+    )
+    pipe_line = IngestionPipeline(
+        transformations=[
+            SentenceSplitter(chunk_size=2048, chunk_overlap=32),
+            OpenAIEmbedding(),
+        ],
+        vector_store=vector_store,
+    )
+
     uploaded_files = []
     for file in files:
         file_location = os.path.join(repo_upload_dir, file.filename)
@@ -66,7 +79,7 @@ async def upload_files_to_repository(
         content = await file.read()
         with open(file_location, "wb") as f:
             f.write(content)
-
+        print(f"file location: {file_location}")
         file_record = FileRecord(
             filename=file.filename,
             original_filename=file.filename,
@@ -81,15 +94,8 @@ async def upload_files_to_repository(
         db.refresh(file_record)
         uploaded_files.append(FileMetadata.model_validate(file_record))
         converted_file_location = file_location.replace("\\", "/")
+        print(f"converted_file_location: {converted_file_location}")
         documents = SimpleDirectoryReader(input_files=[converted_file_location]).load_data()
-        vector_store = MilvusVectorStore(uri="./milvus_demo.db", dim=1536, overwrite=False, collection_name=f"user_{current_user.id}")
-        pipe_line = IngestionPipeline(
-            transformations=[
-                SentenceSplitter(chunk_size=2048, chunk_overlap=32),
-                OpenAIEmbedding(),
-            ],
-            vector_store=vector_store,
-        )
         pipe_line.run(documents=documents)
     return FileResponse(
         message=f"{len(uploaded_files)} file(s) uploaded successfully",
