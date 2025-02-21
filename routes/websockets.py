@@ -159,14 +159,14 @@ async def websocket_chat(websocket: WebSocket, token: str):
         metric_type="COSINE",
         index_type="IVF_FLAT",
     )
-    pipeline = IngestionPipeline(
-        transformations=[
-            SentenceSplitter(chunk_size=2048, chunk_overlap=32),
-            OpenAIEmbedding(),
-        ],
-        vector_store=vector_store,
-    )
-    pipeline.run(documents=documents)
+    # pipeline = IngestionPipeline(
+    #     transformations=[
+    #         SentenceSplitter(chunk_size=2048, chunk_overlap=32),
+    #         OpenAIEmbedding(),
+    #     ],
+    #     vector_store=vector_store,
+    # )
+    # pipeline.run(documents=documents)
     vector_index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
     memory = ChatMemoryBuffer.from_defaults(token_limit=1500)
 
@@ -176,8 +176,6 @@ async def websocket_chat(websocket: WebSocket, token: str):
         system_prompt=prompts.RAG_SYSTEM_PROMPT,
         llm=Settings.llm
     )
-    message = chat_engine.chat(message="Who is the Larry?")
-    print(message)
     # vector_rag = VectorRAG(db_path="./milvus_demo.db", collection_name=f"user_{user.id}")
     while websocket_open:
         try:
