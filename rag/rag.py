@@ -9,7 +9,19 @@ from autogen_core import CancellationToken
 from config.config import OPENAI_API_KEY
 from .vector_rag import VectorRAG
 
-model_client = OpenAIChatCompletionClient(model="gpt-4o", api_key=OPENAI_API_KEY)
+# model_client = OpenAIChatCompletionClient(model="gpt-4o", api_key=OPENAI_API_KEY)
+
+model_client = OpenAIChatCompletionClient(
+    model="llama3.3:70b",
+    base_url="http://localhost:11434/v1",
+    api_key="placeholder",
+    model_info={
+        "vision": False,
+        "function_calling": True,
+        "json_output": True,
+        "family": "unknown",
+    },
+)
 
 system_prompt = """
 You are a Retrieval Augmented Generation (RAG) system designed to deliver comprehensive document analysis and question answering, with a particular emphasis on accounting and financial documents.
