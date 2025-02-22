@@ -16,6 +16,7 @@ from llama_index.core import PropertyGraphIndex, Settings
 from llama_index.llms.ollama import Ollama
 from llama_index.graph_stores.nebula import NebulaPropertyGraphStore
 from llama_index.core.vector_stores.simple import SimpleVectorStore
+from autogen_core.memory import ListMemory, MemoryContent, MemoryMimeType
 
 import prompts
 
@@ -95,8 +96,12 @@ async def websocket_auth_dialogue(websocket: WebSocket):
             token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
             if action.lower() == "sign-up":
                 if get_user_by_phone(db, phone):
+                    response = await authenticate_agent.on_messages(
+                        [TextMessage(content="Phone number already registered. Please sign in.", source="auth_agent")],
+                        cancellation_token=CancellationToken(),
+                    )
                     await websocket.send_json({
-                        "error": "Phone number already registered. Please sign in."
+                        "message": response.chat_message.content
                     })
                     continue
                 hashed_pw = get_password_hash(password)
@@ -134,8 +139,12 @@ async def websocket_auth_dialogue(websocket: WebSocket):
             elif action.lower() == "sign-in":
                 user = authenticate_user(db, phone, password)
                 if not user:
+                    response = await authenticate_agent.on_messages(
+                        [TextMessage(content="Incorrect phone number or password.", source="auth_agent")],
+                        cancellation_token=CancellationToken(),
+                    )
                     await websocket.send_json({
-                        "error": "Incorrect phone number or password."
+                        "message": response.chat_message.content
                     })
                     continue
                 token = create_access_token(

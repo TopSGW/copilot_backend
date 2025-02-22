@@ -5,6 +5,9 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
+from autogen_core.memory import ListMemory, MemoryContent, MemoryMimeType
+user_memory = ListMemory()
+
 
 from config.config import OPENAI_API_KEY
 from .vector_rag import VectorRAG
@@ -44,7 +47,7 @@ Example output:
 ```
 """
 
-authenticate_agent = AssistantAgent("auth_agent", model_client, system_message=system_prompt)
+authenticate_agent = AssistantAgent("auth_agent", model_client, system_message=system_prompt, memory=[user_memory])
 # rag_agent = AssistantAgent(
 #     name="rag_agent",
 #     model_client=model_client,
