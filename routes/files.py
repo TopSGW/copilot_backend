@@ -70,19 +70,19 @@ async def upload_files_to_repository(
     repo_upload_dir = os.path.join(UPLOAD_DIR, current_user.phone_number, str(repository_id))
     os.makedirs(repo_upload_dir, exist_ok=True)
 
-    vector_store = MilvusVectorStore(
-        uri="./milvus_demo.db", 
-        dim=1536, overwrite=False, 
-        collection_name=f"user_{current_user.id}"
-    )
+    # vector_store = MilvusVectorStore(
+    #     uri="./milvus_demo.db", 
+    #     dim=1536, overwrite=False, 
+    #     collection_name=f"user_{current_user.id}"
+    # )
 
-    pipe_line = IngestionPipeline(
-        transformations=[
-            SentenceSplitter(chunk_size=2048, chunk_overlap=32),
-            OpenAIEmbedding(),
-        ],
-        vector_store=vector_store,
-    )
+    # pipe_line = IngestionPipeline(
+    #     transformations=[
+    #         SentenceSplitter(chunk_size=2048, chunk_overlap=32),
+    #         OpenAIEmbedding(),
+    #     ],
+    #     vector_store=vector_store,
+    # )
     property_graph_store = NebulaPropertyGraphStore(
         space=f'space_{current_user.id}'
     )
@@ -125,7 +125,7 @@ async def upload_files_to_repository(
         converted_file_location = file_location.replace("\\", "/")
         print(f"converted_file_location: {converted_file_location}")
         documents = SimpleDirectoryReader(input_files=[converted_file_location]).load_data()
-        pipe_line.run(documents=documents)
+        # pipe_line.run(documents=documents)
 
         for doc in documents:
             graph_index.insert(document=doc)

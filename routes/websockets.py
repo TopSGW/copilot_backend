@@ -180,15 +180,15 @@ async def websocket_chat(websocket: WebSocket, token: str):
     await websocket.accept()
     print(f"Chat WebSocket accepted for user: {user.phone_number}")
     websocket_open = True
-    documents = SimpleDirectoryReader("./data/blackrock").load_data()
-    vector_store = MilvusVectorStore(
-        uri="./milvus_demo.db", 
-        collection_name=f"user_{user.id}",
-        dim=1536, 
-        overwrite=False,         
-        metric_type="COSINE",
-        index_type="IVF_FLAT",
-    )
+    # documents = SimpleDirectoryReader("./data/blackrock").load_data()
+    # vector_store = MilvusVectorStore(
+    #     uri="./milvus_demo.db", 
+    #     collection_name=f"user_{user.id}",
+    #     dim=1536, 
+    #     overwrite=False,         
+    #     metric_type="COSINE",
+    #     index_type="IVF_FLAT",
+    # )
     set_graph_space(space_name=f'space_{user.id}')
     # pipeline = IngestionPipeline(
     #     transformations=[
@@ -198,15 +198,15 @@ async def websocket_chat(websocket: WebSocket, token: str):
     #     vector_store=vector_store,
     # )
     # pipeline.run(documents=documents)
-    vector_index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
+    # vector_index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
     memory = ChatMemoryBuffer.from_defaults(token_limit=1500)
 
-    chat_engine = vector_index.as_chat_engine(
-        chat_mode='context',
-        memory=memory,
-        system_prompt=prompts.RAG_SYSTEM_PROMPT,
-        llm=Settings.llm
-    )
+    # chat_engine = vector_index.as_chat_engine(
+    #     chat_mode='context',
+    #     memory=memory,
+    #     system_prompt=prompts.RAG_SYSTEM_PROMPT,
+    #     llm=Settings.llm
+    # )
 
     property_graph_store = NebulaPropertyGraphStore(
         space=f'space_{user.id}'
@@ -245,12 +245,12 @@ async def websocket_chat(websocket: WebSocket, token: str):
             auth_input_data = json.loads(data)
             user_input = auth_input_data.get("user_input", "")
             print("Processing user input:", user_input)
-            response = chat_engine.chat(message=user_input)
-            print("Response from vector_rag:", response)
+            # response = chat_engine.chat(message=user_input)
+            # print("Response from vector_rag:", response)
             graph_response = graph_chat_engine.chat(message=user_input)
             print("Response from graph_rag:", graph_response)
 
-            if str(response) == 'Empty Response':
+            if str(graph_response) == 'Empty Response':
                 await websocket.send_json({"message": "There is no provided documents. Please upload documents."})
             else:    
                 await websocket.send_json({"message": str(graph_response)})
