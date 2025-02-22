@@ -57,12 +57,12 @@ async def run_auth_agent(user_input: str) -> dict:
     task_prompt = f"The user says: '{user_input}'.\n\n"
     response = await agent_team.run(task=task_prompt)
     print(response.messages[1].content)
-    if "```json" in response.messages[1].content:
-        pattern = r"```json(.*)```"
-        print(">>>>>>>>>>>>>>>>>>>>>>>>")
-        print(response)
-        match = re.search(pattern, response.messages[1].content, re.DOTALL)
-        message = match.group(1) if match else response.messages[1].content
-        return json.loads(message)
-    else:
-        return {"instruction": response.messages[1].content, "action": "ask", "phone_number": "", "password": ""}
+    message = response.messages[1].content
+    return json.loads(message)
+    # if "```json" in response.messages[1].content:
+    #     pattern = r"```json(.*)```"
+    #     match = re.search(pattern, response.messages[1].content, re.DOTALL)
+    #     message = match.group(1) if match else response.messages[1].content
+    #     return json.loads(message)
+    # else:
+    #     return {"instruction": response.messages[1].content, "action": "ask", "phone_number": "", "password": ""}
