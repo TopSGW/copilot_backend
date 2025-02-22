@@ -253,7 +253,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
             if str(response) == 'Empty Response':
                 await websocket.send_json({"message": "There is no provided documents. Please upload documents."})
             else:    
-                await websocket.send_json({"message": str(response)})
+                await websocket.send_json({"message": str(graph_response)})
         except Exception as e:
             print("Error processing message:", e)
             await websocket.send_json({"message": "An error occurred processing your request."})
