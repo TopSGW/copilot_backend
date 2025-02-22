@@ -18,7 +18,7 @@ model_client = OpenAIChatCompletionClient(
     model_info={
         "vision": False,
         "function_calling": True,
-        "json_output": True,
+        "json_output": False,
         "family": "unknown",
     },
 )
