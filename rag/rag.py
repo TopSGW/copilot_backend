@@ -18,7 +18,7 @@ model_client = OpenAIChatCompletionClient(
     model_info={
         "vision": False,
         "function_calling": True,
-        "json_output": False,
+        "json_output": True,
         "family": "unknown",
     },
 )
@@ -59,6 +59,8 @@ async def run_auth_agent(user_input: str) -> dict:
     print(response.messages[1].content)
     if "```json" in response.messages[1].content:
         pattern = r"```json(.*)```"
+        print(">>>>>>>>>>>>>>>>>>>>>>>>")
+        print(response)
         match = re.search(pattern, response.messages[1].content, re.DOTALL)
         message = match.group(1) if match else response.messages[1].content
         return json.loads(message)
