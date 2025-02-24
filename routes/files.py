@@ -114,19 +114,13 @@ async def upload_files_to_repository(
     image_vec_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
         collection_name=f"image_{current_user.id}",
-        dim=512, 
         overwrite=False,         
-        metric_type="COSINE",
-        index_type="IVF_FLAT",
     )
 
     text_vec_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
         collection_name=f"text_{current_user.id}",
-        dim=512, 
         overwrite=False,         
-        metric_type="COSINE",
-        index_type="IVF_FLAT",
     )
 
     index = MultiModalVectorStoreIndex.from_vector_store(

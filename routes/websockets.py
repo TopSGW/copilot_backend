@@ -256,7 +256,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     image_vec_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
         collection_name=f"image_{user.id}",
-        dim=512, 
+        dim=1536, 
         overwrite=False,         
         metric_type="COSINE",
         index_type="IVF_FLAT",
@@ -265,7 +265,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     text_vec_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
         collection_name=f"text_{user.id}",
-        dim=512, 
+        dim=1536, 
         overwrite=False,         
         metric_type="COSINE",
         index_type="IVF_FLAT",
