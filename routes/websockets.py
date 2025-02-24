@@ -44,7 +44,6 @@ Settings.llm = Ollama(
 )
 
 mm_model = OllamaMultiModal(model="llava:34b")
-Settings.embed_model = mm_model
 
 def set_graph_space(space_name: str):
     config = Config()
@@ -272,7 +271,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     )
 
     index = MultiModalVectorStoreIndex.from_vector_store(
-        embed_model=Settings.embed_model,
+        embed_model=mm_model,
         image_embed_model=image_embed_model,
         vector_store=text_vec_store,
         image_vector_store=image_vec_store
@@ -280,7 +279,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
 
     chat_engine = index.as_chat_engine(
         chat_mode='context',
-        llm=Settings._llm,
+        llm=mm_model,
         system_prompt=prompts.RAG_SYSTEM_PROMPT,
         memory=memory        
     )

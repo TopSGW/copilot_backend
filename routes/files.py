@@ -34,8 +34,6 @@ Settings.llm = Ollama(
 )
 
 mm_model = OllamaMultiModal(model="llava:34b")
-Settings.embed_model = mm_model
-
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -132,7 +130,7 @@ async def upload_files_to_repository(
     )
 
     index = MultiModalVectorStoreIndex.from_vector_store(
-        embed_model=Settings.embed_model,
+        embed_model=mm_model,
         image_embed_model=image_embed_model,
         vector_store=text_vec_store,
         image_vector_store=image_vec_store
