@@ -114,7 +114,7 @@ async def upload_files_to_repository(
     image_vec_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
         collection_name=f"image_{current_user.id}",
-        dim=1536, 
+        dim=512, 
         overwrite=False,         
         metric_type="COSINE",
         index_type="IVF_FLAT",
@@ -123,7 +123,7 @@ async def upload_files_to_repository(
     text_vec_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
         collection_name=f"text_{current_user.id}",
-        dim=1536, 
+        dim=512, 
         overwrite=False,         
         metric_type="COSINE",
         index_type="IVF_FLAT",
@@ -138,7 +138,14 @@ async def upload_files_to_repository(
     uploaded_files = []
     for file in files:
         file_location = os.path.join(repo_upload_dir, file.filename)
-        
+        converted_file_location = file_location.replace("\\", "/")
+        print(f"converted_file_location: {converted_file_location}")
+        documents = SimpleDirectoryReader(input_files=[converted_file_location]).load_data()
+
+        # pipe_line.run(documents=documents)
+
+        for doc in documents:
+            index.insert(document=doc)
         content = await file.read()
         with open(file_location, "wb") as f:
             f.write(content)
@@ -156,14 +163,6 @@ async def upload_files_to_repository(
         db.commit()
         db.refresh(file_record)
         uploaded_files.append(FileMetadata.model_validate(file_record))
-        converted_file_location = file_location.replace("\\", "/")
-        print(f"converted_file_location: {converted_file_location}")
-        documents = SimpleDirectoryReader(input_files=[converted_file_location]).load_data()
-
-        # pipe_line.run(documents=documents)
-
-        for doc in documents:
-            index.insert(document=doc)
 
     return FileResponse(
         message=f"{len(uploaded_files)} file(s) uploaded successfully",
