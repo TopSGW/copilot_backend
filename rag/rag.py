@@ -36,15 +36,14 @@ Output your instructions and the collected information as a JSON string with exa
 If the necessary credential information is not provided, please offer clear and courteous guidance to assist the user.
 Ensure that the final output is strictly in JSON format without any additional commentary.
 If user want sign in, set the json value to "sign-in". Or user want sign up, set the json value to "sign-up". 
+
 Example output:
-```json
 {
     "instruction": "",
     "action": "",
     "phone_number": "",
     "password": ""
 }
-```
 """
 
 authenticate_agent = AssistantAgent("auth_agent", model_client, system_message=system_prompt, memory=[user_memory])
