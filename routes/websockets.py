@@ -18,6 +18,7 @@ from llama_index.graph_stores.nebula import NebulaPropertyGraphStore
 from llama_index.core.vector_stores.simple import SimpleVectorStore
 from autogen_core.memory import ListMemory, MemoryContent, MemoryMimeType
 from llama_index.multi_modal_llms.ollama import OllamaMultiModal
+from llama_index.core.prompts import PromptTemplate
 
 
 import prompts
@@ -276,12 +277,26 @@ async def websocket_chat(websocket: WebSocket, token: str):
         image_vector_store=image_vec_store
     )
 
-    chat_engine = index.as_chat_engine(
-        chat_mode='context',
-        llm=mm_model,
-        system_prompt=prompts.RAG_SYSTEM_PROMPT,
-        memory=memory        
+    # chat_engine = index.as_chat_engine(
+    #     chat_mode='context',
+    #     llm=mm_model,
+    #     system_prompt=prompts.RAG_SYSTEM_PROMPT,
+    #     memory=memory        
+    # )
+
+    qa_tmpl_str = (
+        "Context information is below.\n"
+        "---------------------\n"
+        "{context_str}\n"
+        "---------------------\n"
+        "Given the context information and not prior knowledge, "
+        "answer the query.\n"
+        "Query: {query_str}\n"
+        "Answer: "
     )
+    qa_tmpl = PromptTemplate(qa_tmpl_str)
+    query_engine = index.as_query_engine(llm=mm_model, text_qa_template=qa_tmpl)
+
     while websocket_open:
         try:
             data = await websocket.receive_text()
@@ -295,7 +310,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
             auth_input_data = json.loads(data)
             user_input = auth_input_data.get("user_input", "")
             print("Processing user input:", user_input)
-            response = chat_engine.chat(message=user_input)
+            response = query_engine.query(user_input)
             print("Response from vector_rag:", response)
             # graph_response = graph_chat_engine.chat(message=user_input)
             # print("Response from graph_rag:", graph_response)
