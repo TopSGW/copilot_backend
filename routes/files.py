@@ -138,6 +138,11 @@ async def upload_files_to_repository(
     uploaded_files = []
     for file in files:
         file_location = os.path.join(repo_upload_dir, file.filename)
+
+        content = await file.read()
+        with open(file_location, "wb") as f:
+            f.write(content)
+        print(f"file location: {file_location}")
         converted_file_location = file_location.replace("\\", "/")
         print(f"converted_file_location: {converted_file_location}")
         documents = SimpleDirectoryReader(input_files=[converted_file_location]).load_data()
@@ -146,10 +151,6 @@ async def upload_files_to_repository(
 
         for doc in documents:
             index.insert(document=doc)
-        content = await file.read()
-        with open(file_location, "wb") as f:
-            f.write(content)
-        print(f"file location: {file_location}")
         file_record = FileRecord(
             filename=file.filename,
             original_filename=file.filename,
