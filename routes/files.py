@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import List
 from datetime import datetime
 
-from llama_index.core import SimpleDirectoryReader, PropertyGraphIndex, Settings
+from llama_index.core import SimpleDirectoryReader, PropertyGraphIndex, Settings, StorageContext
 from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.core.vector_stores.simple import SimpleVectorStore
 from llama_index.llms.ollama import Ollama
@@ -19,12 +19,22 @@ from databases.database import FileRecord, Repository, get_db
 from auth import get_current_user, User
 from config.config import UPLOAD_DIR
 
+from llama_index.multi_modal_llms.ollama import OllamaMultiModal
+
+from llama_index.embeddings.clip import ClipEmbedding
+from llama_index.core.indices.multi_modal.base import (
+    MultiModalVectorStoreIndex,
+)
+
 Settings.llm = Ollama(
     model="llama3.3:70b",
     temperature=0.3,
     request_timeout=120.0,
     base_url="http://localhost:11434"
 )
+
+mm_model = OllamaMultiModal(model="llava:34b")
+Settings.embed_model = mm_model
 
 
 router = APIRouter(prefix="/files", tags=["files"])
@@ -83,22 +93,49 @@ async def upload_files_to_repository(
     #     ],
     #     vector_store=vector_store,
     # )
-    property_graph_store = NebulaPropertyGraphStore(
-        space=f'space_{current_user.id}'
-    )
-    graph_vec_store = MilvusVectorStore(
+    # property_graph_store = NebulaPropertyGraphStore(
+    #     space=f'space_{current_user.id}'
+    # )
+    # graph_vec_store = MilvusVectorStore(
+    #     uri="./milvus_demo.db", 
+    #     collection_name=f"space_{current_user.id}",
+    #     dim=1536, 
+    #     overwrite=False,         
+    #     metric_type="COSINE",
+    #     index_type="IVF_FLAT",
+    # )
+
+    # graph_index = PropertyGraphIndex.from_existing(
+    #     property_graph_store=property_graph_store,
+    #     vector_store=graph_vec_store,
+    #     llm=Settings._llm,
+    # )
+
+    image_embed_model = ClipEmbedding()
+
+    image_vec_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
-        collection_name=f"space_{current_user.id}",
+        collection_name=f"image_{current_user.id}",
         dim=1536, 
         overwrite=False,         
         metric_type="COSINE",
         index_type="IVF_FLAT",
     )
 
-    graph_index = PropertyGraphIndex.from_existing(
-        property_graph_store=property_graph_store,
-        vector_store=graph_vec_store,
-        llm=Settings._llm,
+    text_vec_store = MilvusVectorStore(
+        uri="./milvus_demo.db", 
+        collection_name=f"text_{current_user.id}",
+        dim=1536, 
+        overwrite=False,         
+        metric_type="COSINE",
+        index_type="IVF_FLAT",
+    )
+
+    index = MultiModalVectorStoreIndex.from_vector_store(
+        embed_model=Settings.embed_model,
+        image_embed_model=image_embed_model,
+        vector_store=text_vec_store,
+        image_vector_store=image_vec_store
     )
 
     uploaded_files = []
@@ -125,10 +162,11 @@ async def upload_files_to_repository(
         converted_file_location = file_location.replace("\\", "/")
         print(f"converted_file_location: {converted_file_location}")
         documents = SimpleDirectoryReader(input_files=[converted_file_location]).load_data()
+
         # pipe_line.run(documents=documents)
 
         for doc in documents:
-            graph_index.insert(document=doc)
+            index.insert(document=doc)
 
     return FileResponse(
         message=f"{len(uploaded_files)} file(s) uploaded successfully",
@@ -183,7 +221,7 @@ async def delete_file(
     db.commit()
     converted_file_location = file_record.storage_path.replace("\\", "/")
     documents = SimpleDirectoryReader(input_files=[converted_file_location]).load_data()
-    vector_store = MilvusVectorStore(uri="./milvus_demo.db", dim=1536, overwrite=False, collection_name=f"user_{current_user.id}")
+    vector_store = MilvusVectorStore(uri="./milvus_demo.db", dim=1536, overwrite=False, collection_name=f"space_{current_user.id}")
     ids = vector_store.client.query(
         collection_name=f"user_{current_user.id}",
         filter="id != ''",

@@ -17,6 +17,8 @@ from llama_index.llms.ollama import Ollama
 from llama_index.graph_stores.nebula import NebulaPropertyGraphStore
 from llama_index.core.vector_stores.simple import SimpleVectorStore
 from autogen_core.memory import ListMemory, MemoryContent, MemoryMimeType
+from llama_index.multi_modal_llms.ollama import OllamaMultiModal
+
 
 import prompts
 
@@ -26,6 +28,10 @@ from auth import get_current_user, create_access_token, authenticate_user, get_p
 from config.config import ACCESS_TOKEN_EXPIRE_HOURS
 from rag.rag import run_auth_agent, authenticate_agent
 from rag.vector_rag import VectorRAG
+from llama_index.embeddings.clip import ClipEmbedding
+from llama_index.core.indices.multi_modal.base import (
+    MultiModalVectorStoreIndex,
+)
 
 from nebula3.Config import Config
 from nebula3.gclient.net import ConnectionPool
@@ -36,6 +42,9 @@ Settings.llm = Ollama(
     request_timeout=120.0,
     base_url="http://localhost:11434"
 )
+
+mm_model = OllamaMultiModal(model="llava:34b")
+Settings.embed_model = mm_model
 
 def set_graph_space(space_name: str):
     config = Config()
@@ -198,7 +207,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     #     metric_type="COSINE",
     #     index_type="IVF_FLAT",
     # )
-    set_graph_space(space_name=f'space_{user.id}')
+    # set_graph_space(space_name=f'space_{user.id}')
     # pipeline = IngestionPipeline(
     #     transformations=[
     #         SentenceSplitter(chunk_size=2048, chunk_overlap=32),
@@ -217,29 +226,63 @@ async def websocket_chat(websocket: WebSocket, token: str):
     #     llm=Settings.llm
     # )
 
-    property_graph_store = NebulaPropertyGraphStore(
-        space=f'space_{user.id}'
-    )
-    graph_vec_store = MilvusVectorStore(
+    # property_graph_store = NebulaPropertyGraphStore(
+    #     space=f'space_{user.id}'
+    # )
+    # graph_vec_store = MilvusVectorStore(
+    #     uri="./milvus_demo.db", 
+    #     collection_name=f"space_{user.id}",
+    #     dim=1536, 
+    #     overwrite=False,         
+    #     metric_type="COSINE",
+    #     index_type="IVF_FLAT",
+    # )
+
+    # graph_index = PropertyGraphIndex.from_existing(
+    #     property_graph_store=property_graph_store,
+    #     vector_store=graph_vec_store,
+    #     llm=Settings._llm,
+    # )
+
+    # graph_chat_engine = graph_index.as_chat_engine(
+    #     chat_mode='context',
+    #     llm=Settings._llm,
+    #     system_prompt=prompts.RAG_SYSTEM_PROMPT,
+    #     memory=memory
+    # )
+
+    image_embed_model = ClipEmbedding()
+
+    image_vec_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
-        collection_name=f"space_{user.id}",
+        collection_name=f"image_{user.id}",
         dim=1536, 
         overwrite=False,         
         metric_type="COSINE",
         index_type="IVF_FLAT",
     )
 
-    graph_index = PropertyGraphIndex.from_existing(
-        property_graph_store=property_graph_store,
-        vector_store=graph_vec_store,
-        llm=Settings._llm,
+    text_vec_store = MilvusVectorStore(
+        uri="./milvus_demo.db", 
+        collection_name=f"text_{user.id}",
+        dim=1536, 
+        overwrite=False,         
+        metric_type="COSINE",
+        index_type="IVF_FLAT",
     )
 
-    graph_chat_engine = graph_index.as_chat_engine(
+    index = MultiModalVectorStoreIndex.from_vector_store(
+        embed_model=Settings.embed_model,
+        image_embed_model=image_embed_model,
+        vector_store=text_vec_store,
+        image_vector_store=image_vec_store
+    )
+
+    chat_engine = index.as_chat_engine(
         chat_mode='context',
         llm=Settings._llm,
         system_prompt=prompts.RAG_SYSTEM_PROMPT,
-        memory=memory
+        memory=memory        
     )
     while websocket_open:
         try:
@@ -254,15 +297,15 @@ async def websocket_chat(websocket: WebSocket, token: str):
             auth_input_data = json.loads(data)
             user_input = auth_input_data.get("user_input", "")
             print("Processing user input:", user_input)
-            # response = chat_engine.chat(message=user_input)
-            # print("Response from vector_rag:", response)
-            graph_response = graph_chat_engine.chat(message=user_input)
-            print("Response from graph_rag:", graph_response)
+            response = chat_engine.chat(message=user_input)
+            print("Response from vector_rag:", response)
+            # graph_response = graph_chat_engine.chat(message=user_input)
+            # print("Response from graph_rag:", graph_response)
 
-            if str(graph_response) == 'Empty Response':
+            if str(response) == 'Empty Response':
                 await websocket.send_json({"message": "There is no provided documents. Please upload documents."})
             else:    
-                await websocket.send_json({"message": str(graph_response)})
+                await websocket.send_json({"message": str(response)})
         except Exception as e:
             print("Error processing message:", e)
             await websocket.send_json({"message": "An error occurred processing your request."})
