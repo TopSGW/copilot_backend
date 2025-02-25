@@ -323,14 +323,16 @@ async def websocket_chat(websocket: WebSocket, token: str):
             user_input = auth_input_data.get("user_input", "")
             print("Processing user input:", user_input)
             response = query_engine.query(user_input)
-            print("Response from vector_rag:", response)
+            final_answer = response.response if hasattr(response, "response") else str(response)
+
+            print("Response from multi modal:", final_answer)
             # graph_response = graph_chat_engine.chat(message=user_input)
             # print("Response from graph_rag:", graph_response)
 
-            if str(response) == 'Empty Response':
+            if final_answer == 'Empty Response':
                 await websocket.send_json({"message": "There is no provided documents. Please upload documents."})
             else:    
-                await websocket.send_json({"message": str(response)})
+                await websocket.send_json({"message": final_answer})
         except Exception as e:
             print("Error processing message:", e)
             await websocket.send_json({"message": "An error occurred processing your request."})
