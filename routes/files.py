@@ -108,19 +108,33 @@ async def upload_files_to_repository(
     #     vector_store=graph_vec_store,
     #     llm=Settings._llm,
     # )
-
-    image_embed_model = ClipEmbedding()
-
+    index_config = {
+        "index_type": "IVF_FLAT",  # Specify the type of index
+        "params": {
+            "nlist": 128          # Index-specific parameter (number of clusters)
+        }
+    }
+    image_embed_model = ClipEmbedding(
+        model="openai/clip-rn50x4",  # This model outputs 1536-dim embeddings.
+        embed_batch_size=10          # DEFAULT_EMBED_BATCH_SIZE is 10.
+    )
     image_vec_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
         collection_name=f"image_{current_user.id}",
-        overwrite=False,         
+        dim=1536,
+        overwrite=False,
+        similarity_metric="COSINE",
+        index_config=index_config
+
     )
 
     text_vec_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
         collection_name=f"text_{current_user.id}",
-        overwrite=False,         
+        dim=1536,
+        overwrite=False,
+        similarity_metric="COSINE",
+        index_config=index_config
     )
 
     index = MultiModalVectorStoreIndex.from_vector_store(

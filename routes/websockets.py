@@ -250,23 +250,34 @@ async def websocket_chat(websocket: WebSocket, token: str):
     #     system_prompt=prompts.RAG_SYSTEM_PROMPT,
     #     memory=memory
     # )
+    index_config = {
+        "index_type": "IVF_FLAT",  # Specify the type of index
+        "params": {
+            "nlist": 128          # Index-specific parameter (number of clusters)
+        }
+    }
 
-    image_embed_model = ClipEmbedding()
+    image_embed_model = ClipEmbedding(
+        model="openai/clip-rn50x4",  # This model outputs 1536-dim embeddings.
+        embed_batch_size=10          # DEFAULT_EMBED_BATCH_SIZE is 10.
+    )
 
     image_vec_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
         collection_name=f"image_{user.id}",
-        overwrite=False,         
-        metric_type="COSINE",
-        index_type="IVF_FLAT",
+        dim=1536,
+        overwrite=False,
+        similarity_metric="COSINE",
+        index_config=index_config
     )
 
     text_vec_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
         collection_name=f"text_{user.id}",
-        overwrite=False,         
-        metric_type="COSINE",
-        index_type="IVF_FLAT",
+        dim=1536,
+        overwrite=False,
+        similarity_metric="COSINE",
+        index_config=index_config
     )
 
     index = MultiModalVectorStoreIndex.from_vector_store(
