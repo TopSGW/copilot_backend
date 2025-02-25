@@ -324,9 +324,9 @@ async def websocket_chat(websocket: WebSocket, token: str):
             print("Processing user input:", user_input)
             response = query_engine.query(user_input)
 
-            print("Response from multi modal:", response)
+            print("Response from multi modal:", response[0].content)
 
-            final_answer = response
+            final_answer = response[0].content
             # graph_response = graph_chat_engine.chat(message=user_input)
             # print("Response from graph_rag:", graph_response)
 
