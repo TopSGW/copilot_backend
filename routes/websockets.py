@@ -257,15 +257,12 @@ async def websocket_chat(websocket: WebSocket, token: str):
         }
     }
 
-    image_embed_model = ClipEmbedding(
-        model="openai/clip-rn50x4",  # This model outputs 1536-dim embeddings.
-        embed_batch_size=10          # DEFAULT_EMBED_BATCH_SIZE is 10.
-    )
+    image_embed_model = ClipEmbedding()
 
     image_vec_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
         collection_name=f"image_{user.id}",
-        dim=1536,
+        dim=512,
         overwrite=False,
         similarity_metric="COSINE",
         index_config=index_config
@@ -274,7 +271,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     text_vec_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
         collection_name=f"text_{user.id}",
-        dim=1536,
+        dim=512,
         overwrite=False,
         similarity_metric="COSINE",
         index_config=index_config

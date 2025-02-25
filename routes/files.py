@@ -114,14 +114,11 @@ async def upload_files_to_repository(
             "nlist": 128          # Index-specific parameter (number of clusters)
         }
     }
-    clip_embedding = ClipEmbedding(
-        model="openai/clip-rn50x4",  # This model outputs 1536-dim embeddings.
-        embed_batch_size=10          # DEFAULT_EMBED_BATCH_SIZE is 10.
-    )
+    clip_embedding = ClipEmbedding()
     image_vec_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
         collection_name=f"image_{current_user.id}",
-        dim=1536,
+        dim=512,
         overwrite=False,
         similarity_metric="COSINE",
         index_config=index_config
@@ -131,7 +128,7 @@ async def upload_files_to_repository(
     text_vec_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
         collection_name=f"text_{current_user.id}",
-        dim=1536,
+        dim=512,
         overwrite=False,
         similarity_metric="COSINE",
         index_config=index_config
