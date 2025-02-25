@@ -114,7 +114,7 @@ async def upload_files_to_repository(
             "nlist": 128          # Index-specific parameter (number of clusters)
         }
     }
-    image_embed_model = ClipEmbedding(
+    clip_embedding = ClipEmbedding(
         model="openai/clip-rn50x4",  # This model outputs 1536-dim embeddings.
         embed_batch_size=10          # DEFAULT_EMBED_BATCH_SIZE is 10.
     )
@@ -138,7 +138,8 @@ async def upload_files_to_repository(
     )
 
     index = MultiModalVectorStoreIndex.from_vector_store(
-        image_embed_model=image_embed_model,
+        embed_model=clip_embedding,
+        image_embed_model=clip_embedding,
         vector_store=text_vec_store,
         image_vector_store=image_vec_store
     )

@@ -281,6 +281,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     )
 
     index = MultiModalVectorStoreIndex.from_vector_store(
+        embed_model=image_embed_model,
         image_embed_model=image_embed_model,
         vector_store=text_vec_store,
         image_vector_store=image_vec_store
