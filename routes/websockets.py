@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
 from datetime import timedelta
-from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
+from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, StorageContext
 from llama_index.vector_stores.milvus import MilvusVectorStore
 
 from llama_index.core.ingestion import IngestionPipeline
@@ -250,6 +250,8 @@ async def websocket_chat(websocket: WebSocket, token: str):
     #     system_prompt=prompts.RAG_SYSTEM_PROMPT,
     #     memory=memory
     # )
+
+    documents = SimpleDirectoryReader(input_files=["./data/1.jpg"])
     index_config = {
         "index_type": "IVF_FLAT",  # Specify the type of index
         "params": {
@@ -277,11 +279,14 @@ async def websocket_chat(websocket: WebSocket, token: str):
         index_config=index_config
     )
 
-    index = MultiModalVectorStoreIndex.from_vector_store(
-        embed_model=image_embed_model,
-        image_embed_model=image_embed_model,
+    storage_context = StorageContext.from_defaults(
         vector_store=text_vec_store,
-        image_vector_store=image_vec_store
+        image_store=image_vec_store
+    )
+
+    index = MultiModalVectorStoreIndex.from_documents(
+        documents=documents,
+        storage_context=storage_context
     )
 
     # chat_engine = index.as_chat_engine(
