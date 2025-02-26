@@ -251,7 +251,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     #     memory=memory
     # )
 
-    documents = SimpleDirectoryReader(input_files=["./data/1.jpg"])
+    documents = SimpleDirectoryReader(input_files=["./data/1.jpg"]).load_data()
     index_config = {
         "index_type": "IVF_FLAT",  # Specify the type of index
         "params": {
