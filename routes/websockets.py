@@ -286,7 +286,9 @@ async def websocket_chat(websocket: WebSocket, token: str):
 
     index = MultiModalVectorStoreIndex.from_documents(
         documents=documents,
-        storage_context=storage_context
+        storage_context=storage_context,
+        image_vec_store=image_embed_model,
+        text_vec_store=image_embed_model
     )
 
     # chat_engine = index.as_chat_engine(
@@ -308,13 +310,19 @@ async def websocket_chat(websocket: WebSocket, token: str):
     )
     qa_tmpl = PromptTemplate(qa_tmpl_str)
     query_engine = index.as_query_engine(
-        llm=Settings.llm, 
+        llm=mm_model, 
         text_qa_template=qa_tmpl,
         similarity_top_k=2,
         image_similarity_top_k=1,
     )
 
-    retriver_engine = index.as_retriever()
+    ids = image_vec_store.client.query(
+        collection_name=f"image_{user.id}",
+        filter="id != ''",
+        output_fields=["file_path", "doc_id"]    
+    )
+    print(ids)
+
     while websocket_open:
         try:
             data = await websocket.receive_text()
