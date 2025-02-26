@@ -308,12 +308,13 @@ async def websocket_chat(websocket: WebSocket, token: str):
     )
     qa_tmpl = PromptTemplate(qa_tmpl_str)
     query_engine = index.as_query_engine(
-        llm=mm_model, 
+        llm=Settings.llm, 
         text_qa_template=qa_tmpl,
         similarity_top_k=2,
         image_similarity_top_k=1,
     )
 
+    retriver_engine = index.as_retriever()
     while websocket_open:
         try:
             data = await websocket.receive_text()
