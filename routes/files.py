@@ -25,6 +25,9 @@ from llama_index.embeddings.clip import ClipEmbedding
 from llama_index.core.indices.multi_modal.base import (
     MultiModalVectorStoreIndex,
 )
+from pdf2image import convert_from_path
+from utils.colpali_manager import ColpaliManager
+from utils.milvus_manager import MilvusManager
 
 Settings.llm = Ollama(
     model="llama3.3:70b",
@@ -37,6 +40,8 @@ mm_model = OllamaMultiModal(model="llava:34b")
 
 router = APIRouter(prefix="/files", tags=["files"])
 
+colpali_manager = ColpaliManager()
+milvus_manager=MilvusManager()
 class FileMetadata(BaseModel):
     filename: str
     original_filename: str
@@ -114,49 +119,78 @@ async def upload_files_to_repository(
             "nlist": 128          # Index-specific parameter (number of clusters)
         }
     }
-    clip_embedding = ClipEmbedding()
-    image_vec_store = MilvusVectorStore(
+    # clip_embedding = ClipEmbedding()
+    vector_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
         collection_name=f"image_{current_user.id}",
-        dim=512,
-        overwrite=False,
-        similarity_metric="COSINE",
-        index_config=index_config
-
-    )
-
-    text_vec_store = MilvusVectorStore(
-        uri="./milvus_demo.db", 
-        collection_name=f"text_{current_user.id}",
-        dim=512,
+        dim=1024,
         overwrite=False,
         similarity_metric="COSINE",
         index_config=index_config
     )
 
-    index = MultiModalVectorStoreIndex.from_vector_store(
-        embed_model=clip_embedding,
-        image_embed_model=clip_embedding,
-        vector_store=text_vec_store,
-        image_vector_store=image_vec_store
-    )
+    # text_vec_store = MilvusVectorStore(
+    #     uri="./milvus_demo.db", 
+    #     collection_name=f"text_{current_user.id}",
+    #     dim=512,
+    #     overwrite=False,
+    #     similarity_metric="COSINE",
+    # )
+
+    # index = MultiModalVectorStoreIndex.from_vector_store(
+    #     embed_model=clip_embedding,
+    #     image_embed_model=clip_embedding,
+    #     vector_store=text_vec_store,
+    #     image_vector_store=image_vec_store
+    # )
 
     uploaded_files = []
     for file in files:
         file_location = os.path.join(repo_upload_dir, file.filename)
+        temp_dir_name, file_extension = os.path.splitext(file.filename) # Extracting the extension name
+
+        print(f"Uploaded file: {file.filename}, Extension: {file_extension}")
 
         content = await file.read()
         with open(file_location, "wb") as f:
             f.write(content)
+        
+        if file_extension == '.pdf':
+            pdf_dir = os.path.join(repo_upload_dir, temp_dir_name)
+            os.makedirs(pdf_dir, exist_ok=True)
+            pdf_path = file_location
+            images = convert_from_path(pdf_path)
+            image_paths = []
+
+            for i, image in enumerate(images):
+                image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
+                image.save(image_save_path, "PNG")
+                image_paths.append(image_save_path)
+            
+            colpali_vecs = colpali_manager.process_images(image_paths=image_paths)
+
+            images_data = [{
+                "embedding": colpali_vecs[i],
+                "filepath": image_paths[i]
+            } for i in range(len(image_paths))]
+
+            images_as_docs = milvus_manager.get_images_as_doc(images_with_vectors=images_data)
+
+            for i in range(len(images_as_docs)):
+                vector_store.client.insert(
+                    collection_name=f"image_{current_user.id}",
+                    data=images_as_docs[i]
+                )
+
         print(f"file location: {file_location}")
         converted_file_location = file_location.replace("\\", "/")
         print(f"converted_file_location: {converted_file_location}")
-        documents = SimpleDirectoryReader(input_files=[converted_file_location]).load_data()
+        # documents = SimpleDirectoryReader(input_files=[converted_file_location]).load_data()
 
         # pipe_line.run(documents=documents)
 
-        for doc in documents:
-            index.insert(document=doc)
+        # for doc in documents:
+        #     index.insert(document=doc)
         file_record = FileRecord(
             filename=file.filename,
             original_filename=file.filename,

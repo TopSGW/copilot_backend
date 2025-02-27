@@ -251,7 +251,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     #     memory=memory
     # )
 
-    documents = SimpleDirectoryReader(input_files=["./data/1.jpg"]).load_data()
+    # documents = SimpleDirectoryReader(input_files=["./data/1.jpg"]).load_data()
     index_config = {
         "index_type": "IVF_FLAT",  # Specify the type of index
         "params": {
@@ -270,26 +270,26 @@ async def websocket_chat(websocket: WebSocket, token: str):
         index_config=index_config
     )
 
-    text_vec_store = MilvusVectorStore(
-        uri="./milvus_demo.db", 
-        collection_name=f"text_{user.id}",
-        dim=512,
-        overwrite=False,
-        similarity_metric="COSINE",
-        index_config=index_config
+    # text_vec_store = MilvusVectorStore(
+    #     uri="./milvus_demo.db", 
+    #     collection_name=f"text_{user.id}",
+    #     dim=512,
+    #     overwrite=False,
+    #     similarity_metric="COSINE",
+    #     index_config=index_config
+    # )
+    index = VectorStoreIndex.from_vector_store(
+        vector_store=image_vec_store
     )
+    # storage_context = StorageContext.from_defaults(
+    #     vector_store=text_vec_store,
+    # )
 
-    storage_context = StorageContext.from_defaults(
-        vector_store=text_vec_store,
-        image_store=image_vec_store
-    )
-
-    index = MultiModalVectorStoreIndex.from_documents(
-        documents=documents,
-        storage_context=storage_context,
-        image_vec_store=image_embed_model,
-        text_vec_store=image_embed_model
-    )
+    # index = MultiModalVectorStoreIndex.from_documents(
+    #     documents=documents,
+    #     storage_context=storage_context,
+    #     image_vector_store=image_vec_store
+    # )
 
     # chat_engine = index.as_chat_engine(
     #     chat_mode='context',
@@ -310,10 +310,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     )
     qa_tmpl = PromptTemplate(qa_tmpl_str)
     query_engine = index.as_query_engine(
-        llm=mm_model, 
-        text_qa_template=qa_tmpl,
-        similarity_top_k=2,
-        image_similarity_top_k=1,
+        llm=Settings.llm,     
     )
 
     ids = image_vec_store.client.query(
