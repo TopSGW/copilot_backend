@@ -168,7 +168,7 @@ async def upload_files_to_repository(
                 image_paths.append(image_save_path)
             
             colpali_vecs = colpali_manager.process_images(image_paths=image_paths)
-
+            print(colpali_vecs[0], type)
             images_data = [{
                 "embedding": colpali_vecs[i],
                 "filepath": image_paths[i]
@@ -177,6 +177,7 @@ async def upload_files_to_repository(
             images_as_docs = milvus_manager.get_images_as_doc(images_with_vectors=images_data)
 
             for i in range(len(images_as_docs)):
+                print(images_as_docs[i])
                 vector_store.client.insert(
                     collection_name=f"image_{current_user.id}",
                     data=images_as_docs[i]
