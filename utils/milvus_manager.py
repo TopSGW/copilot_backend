@@ -10,7 +10,7 @@ class MilvusManager:
 
         for i in range(len(images_with_vectors)):
             data = {
-                "embedding": images_with_vectors[i]["embedding"],
+                "embedding": images_with_vectors[i]["embedding"].tolist(),
                 "doc_id": i,
                 "filepath": images_with_vectors[i]["filepath"],
             }
