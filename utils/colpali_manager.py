@@ -13,7 +13,7 @@ import numpy as np
 
 import spaces
 
-model_name = "vidore/colpali-v1.2"
+model_name = "vidore/colpali-v1.3"
 device = get_torch_device("cuda")
 
 model = ColPali.from_pretrained(
