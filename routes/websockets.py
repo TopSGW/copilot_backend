@@ -343,13 +343,14 @@ async def websocket_chat(websocket: WebSocket, token: str):
             query_vec = colpali_manager.process_text([user_input])[0]
             search_res = milvus_manager.search(query_vec, topk=10)
             docs = [doc for score, doc in search_res]
+            print("docs", docs)
             print("Processing user input:", user_input)
             response = ollama.chat(
-                model='llama3.2-vision',
+                model='llama3.2-vision:90b',
                 messages=[{
                     'role': 'user',
                     'content': user_input,
-                    'images': ['image.jpg']
+                    'images': docs
                 }]
             )
 

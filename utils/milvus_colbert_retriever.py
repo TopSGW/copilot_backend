@@ -72,12 +72,11 @@ class MilvusColbertRetriever:
         )
 
     def search(self, data, topk):
-        # Perform a vector search on the collection to find the top-k most similar documents.
         search_params = {"metric_type": "IP", "params": {}}
         results = self.client.search(
             self.collection_name,
             data,
-            limit=int(50),
+            limit=50,
             output_fields=["vector", "seq_id", "doc_id"],
             search_params=search_params,
         )
@@ -89,18 +88,21 @@ class MilvusColbertRetriever:
         scores = []
 
         def rerank_single_doc(doc_id, data, client, collection_name):
-            # Rerank a single document by retrieving its embeddings and calculating the similarity with the query.
+            # Query using the doc_id (and a slight hack with doc_id+1 if needed)
             doc_colbert_vecs = client.query(
                 collection_name=collection_name,
-                filter=f"doc_id in [{doc_id}]",
+                filter=f"doc_id in [{doc_id}, {doc_id + 1}]",
                 output_fields=["seq_id", "vector", "doc"],
                 limit=1000,
             )
+            # Stack vectors from the retrieved segments
             doc_vecs = np.vstack(
                 [doc_colbert_vecs[i]["vector"] for i in range(len(doc_colbert_vecs))]
             )
             score = np.dot(data, doc_vecs.T).max(1).sum()
-            return (score, doc_id)
+            # Retrieve the document text from the first segment; adjust as needed.
+            doc = doc_colbert_vecs[0]["doc"] if len(doc_colbert_vecs) > 0 else ""
+            return (score, doc)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=300) as executor:
             futures = {
@@ -110,14 +112,11 @@ class MilvusColbertRetriever:
                 for doc_id in doc_ids
             }
             for future in concurrent.futures.as_completed(futures):
-                score, doc_id = future.result()
-                scores.append((score, doc_id))
+                score, doc = future.result()
+                scores.append((score, doc))
 
         scores.sort(key=lambda x: x[0], reverse=True)
-        if len(scores) >= topk:
-            return scores[:topk]
-        else:
-            return scores
+        return scores[:topk] if len(scores) >= topk else scores
 
     def insert(self, data):
         # Insert ColBERT embeddings and metadata for a document into the collection.

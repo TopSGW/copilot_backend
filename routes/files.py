@@ -21,13 +21,13 @@ from config.config import UPLOAD_DIR
 
 from llama_index.multi_modal_llms.ollama import OllamaMultiModal
 
-from llama_index.embeddings.clip import ClipEmbedding
 from llama_index.core.indices.multi_modal.base import (
     MultiModalVectorStoreIndex,
 )
 from pdf2image import convert_from_path
 from utils.colpali_manager import ColpaliManager
 from utils.milvus_manager import MilvusManager
+import ollama
 
 Settings.llm = Ollama(
     model="llama3.3:70b",
@@ -171,7 +171,21 @@ async def upload_files_to_repository(
                 image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
                 image.save(image_save_path, "PNG")
                 image_paths.append(image_save_path)
-            
+
+                text_con_prompt= """
+                    Please analyze the provided image and generate a detailed, plain-language description of its contents. 
+                    Include key elements such as objects, people, colors, spatial relationships, background details, and any text visible in the image. 
+                    The goal is to create a comprehensive textual representation that fully conveys the visual information to someone who cannot see the image.
+                """
+                txt_response = ollama.chat(
+                    model='llama3.2-vision:90b',
+                    messages=[{
+                        'role': 'user',
+                        'content': text_con_prompt,
+                        'images': [image_save_path]
+                    }]
+                )
+
             colbert_vecs = colpali_manager.process_images(image_paths=image_paths)
 
             images_data = [{
