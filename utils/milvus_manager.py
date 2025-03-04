@@ -114,23 +114,23 @@ class MilvusManager:
             return scores
 
     def insert(self, data):
-        colbert_vecs = data["colbert_vecs"]  # shape (N, 8192), for example
-        seq_length = len(colbert_vecs)
-        doc_ids = [data["doc_id"]] * seq_length
-        docs = [data["filepath"]] + [""]*(seq_length - 1)
+        # data["colbert_vecs"] is shape (8192,) as a NumPy array
+        single_embedding = data["colbert_vecs"]  # e.g. np.array of shape (8192,)
 
-        self.client.insert(
-            self.collection_name,
-            [
-                {
-                    "vector": colbert_vecs[i].tolist(),
-                    "seq_id": i,
-                    "doc_id": doc_ids[i],
-                    "doc": docs[i],
-                }
-                for i in range(seq_length)
-            ],
-        )
+        # Convert np.array -> Python list[float]
+        single_embedding_list = single_embedding.tolist()
+
+        # Now create exactly ONE row for Milvus
+        row = {
+            "vector": single_embedding_list,
+            "seq_id": 0,               # or whatever
+            "doc_id": data["doc_id"],
+            "doc": data["filepath"]
+        }
+
+        # Insert that single row
+        self.client.insert(self.collection_name, [row])
+
 
     def get_images_as_doc(self, images_with_vectors:list):
         
