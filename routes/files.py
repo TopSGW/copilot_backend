@@ -109,7 +109,7 @@ async def upload_files_to_repository(
     vector_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
         collection_name=f"llama_{current_user.id}",
-        dim=1536,
+        dim=8192,
         overwrite=False,
         similarity_metric="COSINE",
         index_config=index_config
@@ -125,8 +125,7 @@ async def upload_files_to_repository(
 
     milvus_manager = MilvusManager(
         milvus_uri="./milvus_demo.db",
-        collection_name=f"original_{current_user.id}",
-        dim=128
+        collection_name=f"original_{current_user.id}"    
     )
 
 
