@@ -4,7 +4,7 @@ import concurrent.futures
 
 
 class MilvusManager:
-    def __init__(self, milvus_uri, collection_name, dim=8192):
+    def __init__(self, milvus_uri, collection_name, dim=128):
         self.client = MilvusClient(uri=milvus_uri)
         self.collection_name = collection_name
         self.dim = dim
@@ -114,23 +114,26 @@ class MilvusManager:
             return scores
 
     def insert(self, data):
-        # data["colbert_vecs"] is shape (8192,) as a NumPy array
-        single_embedding = data["colbert_vecs"]  # e.g. np.array of shape (8192,)
+        # Assume data["colbert_vecs"] is a NumPy array of shape (num_vectors, 128)
+        colbert_vecs = data["colbert_vecs"]
+        num_vectors = colbert_vecs.shape[0]
+        doc_ids = [data["doc_id"]] * num_vectors
+        seq_ids = list(range(num_vectors))
+        docs = [""] * num_vectors
+        docs[0] = data["filepath"]
 
-        # Convert np.array -> Python list[float]
-        single_embedding_list = single_embedding.tolist()
+        # Build the rows to insert: each row is one 128-d vector
+        rows = [
+            {
+                "vector": colbert_vecs[i].tolist(),  # Ensures a 1D list of 128 floats
+                "seq_id": seq_ids[i],
+                "doc_id": doc_ids[i],
+                "doc": docs[i],
+            }
+            for i in range(num_vectors)
+        ]
 
-        # Now create exactly ONE row for Milvus
-        row = {
-            "vector": single_embedding_list,
-            "seq_id": 0,               # or whatever
-            "doc_id": data["doc_id"],
-            "doc": data["filepath"]
-        }
-
-        # Insert that single row
-        self.client.insert(self.collection_name, [row])
-
+        self.client.insert(self.collection_name, rows)
 
     def get_images_as_doc(self, images_with_vectors:list):
         
