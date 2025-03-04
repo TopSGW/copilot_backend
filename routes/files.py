@@ -157,23 +157,23 @@ async def upload_files_to_repository(
                 image.save(image_save_path, "PNG")
                 image_paths.append(image_save_path)
 
-                txt_response = ollama.chat(
-                    model='llama3.2-vision:90b',
-                    messages=[{
-                        'role': 'user',
-                        'content': text_con_prompt,
-                        'images': [image_save_path]
-                    }]
-                )
-                print("text message: ", txt_response.message)
-                with open(txt_save_path, "w") as file:
-                    file.write(str(txt_response.message))
+                # txt_response = ollama.chat(
+                #     model='llama3.2-vision:90b',
+                #     messages=[{
+                #         'role': 'user',
+                #         'content': text_con_prompt,
+                #         'images': [image_save_path]
+                #     }]
+                # )
+                # print("text message: ", txt_response.message)
+                # with open(txt_save_path, "w") as file:
+                #     file.write(str(txt_response.message))
 
-                simple_doc = SimpleDirectoryReader(input_files=[txt_save_path]).load_data()
-                pipe_line.run(
-                    documents=simple_doc, 
-                    show_progress=True
-                )
+                # simple_doc = SimpleDirectoryReader(input_files=[txt_save_path]).load_data()
+                # pipe_line.run(
+                #     documents=simple_doc, 
+                #     show_progress=True
+                # )
 
             colbert_vecs = colpali_manager.process_images(image_paths=image_paths)
 

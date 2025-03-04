@@ -114,10 +114,15 @@ class MilvusManager:
             return scores
 
     def insert(self, data):
-        colbert_vecs = [vec for vec in data["colbert_vecs"]]
-        seq_length = len(colbert_vecs)
-        doc_ids = [data["doc_id"] for i in range(seq_length)]
-        seq_ids = list(range(seq_length))
+        # data["colbert_vecs"] should already be shape (8192,) or a 1-D numpy array
+        single_vec = data["colbert_vecs"]
+        
+        # Convert that single embedding into a list-of-one if needed
+        colbert_vecs = [single_vec]  # Now we have 1 vector, dimension 8192
+        seq_length = len(colbert_vecs)  # seq_length = 1
+
+        doc_ids = [data["doc_id"]]  # or repeated if you truly have more vectors
+        seq_ids = [0]               # or range(seq_length)
         docs = [""] * seq_length
         docs[0] = data["filepath"]
 
@@ -133,7 +138,6 @@ class MilvusManager:
                 for i in range(seq_length)
             ],
         )
-
 
     def get_images_as_doc(self, images_with_vectors:list):
         
