@@ -114,22 +114,21 @@ class MilvusManager:
             return scores
 
     def insert(self, data):
-        colbert_vecs = data["colbert_vecs"]
-        # If colbert_vecs is shape (num_vectors, dim), loop over them
-        # If it's shape (dim,), you likely only have 1 vector anyway
+        colbert_vecs = data["colbert_vecs"]  # shape (N, 8192), for example
+        seq_length = len(colbert_vecs)
+        doc_ids = [data["doc_id"]] * seq_length
+        docs = [data["filepath"]] + [""]*(seq_length - 1)
 
-        # Example if colbert_vecs is a single vector of shape (8192,):
-        single_vec = colbert_vecs  # it's already an ndarray of shape (8192,)
-        
         self.client.insert(
             self.collection_name,
             [
                 {
-                    "vector": single_vec.tolist(),  # Convert to list
-                    "seq_id": 0,
-                    "doc_id": data["doc_id"],
-                    "doc": data["filepath"],
+                    "vector": colbert_vecs[i].tolist(),
+                    "seq_id": i,
+                    "doc_id": doc_ids[i],
+                    "doc": docs[i],
                 }
+                for i in range(seq_length)
             ],
         )
 
