@@ -13,7 +13,7 @@ import numpy as np
 
 import spaces
 
-model_name = "vidore/colpali-v1.3"
+model_name = "vidore/colpali-v1.2"
 device = get_torch_device("cuda")
 
 model = ColPali.from_pretrained(
@@ -27,7 +27,7 @@ processor = cast(ColPaliProcessor, ColPaliProcessor.from_pretrained(model_name))
 class ColpaliManager:
 
     
-    def __init__(self, device = "cuda", model_name = "vidore/colpali-v1.3"):
+    def __init__(self, device = "cuda", model_name = "vidore/colpali-v1.2"):
 
         print(f"Initializing ColpaliManager with device {device} and model {model_name}")
 

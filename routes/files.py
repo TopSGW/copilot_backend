@@ -126,7 +126,7 @@ async def upload_files_to_repository(
     milvus_manager = MilvusManager(
         milvus_uri="./milvus_demo.db",
         collection_name=f"original_{current_user.id}",
-        dim=8192
+        dim=128
     )
 
 

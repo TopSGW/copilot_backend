@@ -4,7 +4,7 @@ import concurrent.futures
 
 
 class MilvusManager:
-    def __init__(self, milvus_uri, collection_name, dim=8192):
+    def __init__(self, milvus_uri, collection_name, dim=128):
         self.client = MilvusClient(uri=milvus_uri)
         self.collection_name = collection_name
         self.dim = dim
