@@ -325,7 +325,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     milvus_manager = MilvusManager(
         milvus_uri="./milvus_demo.db",
         collection_name=f"original_{user.id}",
-        dim=1536
+        dim=8192
     )
 
     while websocket_open:
