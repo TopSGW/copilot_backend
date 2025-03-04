@@ -7,11 +7,11 @@ class MilvusManager:
     def __init__(self, milvus_uri, collection_name, dim=1576):
         self.client = MilvusClient(uri=milvus_uri)
         self.collection_name = collection_name
+        self.dim = dim
         if self.client.has_collection(collection_name=self.collection_name):
             self.client.load_collection(collection_name)
         else:
             self.create_collection()
-        self.dim = dim
 
     def create_collection(self):
         if self.client.has_collection(collection_name=self.collection_name):
