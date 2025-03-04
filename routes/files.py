@@ -5,10 +5,11 @@ from pydantic import BaseModel
 from typing import List
 from datetime import datetime
 
-from llama_index.core import SimpleDirectoryReader, PropertyGraphIndex, Settings, StorageContext
+from llama_index.core import SimpleDirectoryReader, PropertyGraphIndex, Settings, StorageContext, Document
 from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.core.vector_stores.simple import SimpleVectorStore
 from llama_index.llms.ollama import Ollama
+from llama_index.embeddings.ollama import OllamaEmbedding
 
 from llama_index.core.ingestion import IngestionPipeline
 from llama_index.core.node_parser import SentenceSplitter
@@ -21,9 +22,6 @@ from config.config import UPLOAD_DIR
 
 from llama_index.multi_modal_llms.ollama import OllamaMultiModal
 
-from llama_index.core.indices.multi_modal.base import (
-    MultiModalVectorStoreIndex,
-)
 from pdf2image import convert_from_path
 from utils.colpali_manager import ColpaliManager
 from utils.milvus_manager import MilvusManager
@@ -36,7 +34,10 @@ Settings.llm = Ollama(
     base_url="http://localhost:11434"
 )
 
-mm_model = OllamaMultiModal(model="llava:34b")
+ollama_embedding = OllamaEmbedding(
+    model_name="llama3.3:70b",
+    base_url="http://localhost:11434",
+)
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -82,19 +83,6 @@ async def upload_files_to_repository(
     repo_upload_dir = os.path.join(UPLOAD_DIR, current_user.phone_number, str(repository_id))
     os.makedirs(repo_upload_dir, exist_ok=True)
 
-    # vector_store = MilvusVectorStore(
-    #     uri="./milvus_demo.db", 
-    #     dim=1536, overwrite=False, 
-    #     collection_name=f"user_{current_user.id}"
-    # )
-
-    # pipe_line = IngestionPipeline(
-    #     transformations=[
-    #         SentenceSplitter(chunk_size=2048, chunk_overlap=32),
-    #         OpenAIEmbedding(),
-    #     ],
-    #     vector_store=vector_store,
-    # )
     # property_graph_store = NebulaPropertyGraphStore(
     #     space=f'space_{current_user.id}'
     # )
@@ -118,7 +106,6 @@ async def upload_files_to_repository(
             "nlist": 128          # Index-specific parameter (number of clusters)
         }
     }
-    # clip_embedding = ClipEmbedding()
     vector_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
         collection_name=f"llama_{current_user.id}",
@@ -128,26 +115,20 @@ async def upload_files_to_repository(
         index_config=index_config
     )
 
+    pipe_line = IngestionPipeline(
+        transformations=[
+            SentenceSplitter(chunk_size=512, chunk_overlap=128),
+            ollama_embedding
+        ],
+        vector_store=vector_store,
+    )
+
     milvus_manager = MilvusManager(
         milvus_uri="./milvus_demo.db",
         collection_name=f"original_{current_user.id}",
         dim=1536
     )
 
-    # text_vec_store = MilvusVectorStore(
-    #     uri="./milvus_demo.db", 
-    #     collection_name=f"text_{current_user.id}",
-    #     dim=512,
-    #     overwrite=False,
-    #     similarity_metric="COSINE",
-    # )
-
-    # index = MultiModalVectorStoreIndex.from_vector_store(
-    #     embed_model=clip_embedding,
-    #     image_embed_model=clip_embedding,
-    #     vector_store=text_vec_store,
-    #     image_vector_store=image_vec_store
-    # )
 
     uploaded_files = []
     for file in files:
@@ -169,6 +150,7 @@ async def upload_files_to_repository(
 
             for i, image in enumerate(images):
                 image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
+                txt_save_path = os.path.join(pdf_dir, f"page_{i}.txt")
                 image.save(image_save_path, "PNG")
                 image_paths.append(image_save_path)
 
@@ -186,6 +168,12 @@ async def upload_files_to_repository(
                     }]
                 )
 
+                with open(txt_save_path, "w") as file:
+                    file.write(txt_response)
+
+                simple_doc = SimpleDirectoryReader(input_files=[txt_save_path]).load_data()
+                pipe_line.run(documents=simple_doc)
+
             colbert_vecs = colpali_manager.process_images(image_paths=image_paths)
 
             images_data = [{
@@ -193,18 +181,12 @@ async def upload_files_to_repository(
                 "filepath": image_paths[i]
             } for i in range(len(image_paths))]
 
-
             milvus_manager.insert_images_data(images_data)
 
         print(f"file location: {file_location}")
         converted_file_location = file_location.replace("\\", "/")
         print(f"converted_file_location: {converted_file_location}")
-        # documents = SimpleDirectoryReader(input_files=[converted_file_location]).load_data()
 
-        # pipe_line.run(documents=documents)
-
-        # for doc in documents:
-        #     index.insert(document=doc)
         file_record = FileRecord(
             filename=file.filename,
             original_filename=file.filename,
