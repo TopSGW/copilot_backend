@@ -67,9 +67,8 @@ class ColpaliManager:
             ds.extend(list(torch.unbind(embeddings_doc.to(device))))
                 
         ds_np = [d.float().cpu().numpy() for d in ds]
-        float_vectors = [emb.astype(np.float32).tolist() for emb in ds_np]
 
-        return float_vectors
+        return ds_np
     
     @spaces.GPU
     def process_text(self, texts: list[str]):

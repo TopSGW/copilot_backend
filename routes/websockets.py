@@ -29,13 +29,15 @@ from auth import get_current_user, create_access_token, authenticate_user, get_p
 from config.config import ACCESS_TOKEN_EXPIRE_HOURS
 from rag.rag import run_auth_agent, authenticate_agent
 from rag.vector_rag import VectorRAG
-from llama_index.embeddings.clip import ClipEmbedding
 from llama_index.core.indices.multi_modal.base import (
     MultiModalVectorStoreIndex,
 )
 
 from nebula3.Config import Config
 from nebula3.gclient.net import ConnectionPool
+from utils.colpali_manager import ColpaliManager
+from utils.milvus_manager import MilvusManager
+import ollama
 
 Settings.llm = Ollama(
     model="llama3.3:70b",
@@ -45,6 +47,8 @@ Settings.llm = Ollama(
 )
 
 mm_model = OllamaMultiModal(model="llava:34b")
+colpali_manager = ColpaliManager()
+
 
 def set_graph_space(space_name: str):
     config = Config()
@@ -252,23 +256,21 @@ async def websocket_chat(websocket: WebSocket, token: str):
     # )
 
     # documents = SimpleDirectoryReader(input_files=["./data/1.jpg"]).load_data()
-    index_config = {
-        "index_type": "IVF_FLAT",  # Specify the type of index
-        "params": {
-            "nlist": 128          # Index-specific parameter (number of clusters)
-        }
-    }
+    # index_config = {
+    #     "index_type": "IVF_FLAT",  # Specify the type of index
+    #     "params": {
+    #         "nlist": 128          # Index-specific parameter (number of clusters)
+    #     }
+    # }
 
-    image_embed_model = ClipEmbedding()
-
-    image_vec_store = MilvusVectorStore(
-        uri="./milvus_demo.db", 
-        collection_name=f"image_{user.id}",
-        dim=512,
-        overwrite=False,
-        similarity_metric="COSINE",
-        index_config=index_config
-    )
+    # image_vec_store = MilvusVectorStore(
+    #     uri="./milvus_demo.db", 
+    #     collection_name=f"image_{user.id}",
+    #     dim=1536,
+    #     overwrite=False,
+    #     similarity_metric="COSINE",
+    #     index_config=index_config
+    # )
 
     # text_vec_store = MilvusVectorStore(
     #     uri="./milvus_demo.db", 
@@ -278,9 +280,9 @@ async def websocket_chat(websocket: WebSocket, token: str):
     #     similarity_metric="COSINE",
     #     index_config=index_config
     # )
-    index = VectorStoreIndex.from_vector_store(
-        vector_store=image_vec_store
-    )
+    # index = VectorStoreIndex.from_vector_store(
+    #     vector_store=image_vec_store
+    # )
     # storage_context = StorageContext.from_defaults(
     #     vector_store=text_vec_store,
     # )
@@ -298,27 +300,33 @@ async def websocket_chat(websocket: WebSocket, token: str):
     #     memory=memory        
     # )
 
-    qa_tmpl_str = (
-        "Context information is below.\n"
-        "---------------------\n"
-        "{context_str}\n"
-        "---------------------\n"
-        "Given the context information and not prior knowledge, "
-        "answer the query.\n"
-        "Query: {query_str}\n"
-        "Answer: "
-    )
-    qa_tmpl = PromptTemplate(qa_tmpl_str)
-    query_engine = index.as_query_engine(
-        llm=Settings.llm,     
-    )
+    # qa_tmpl_str = (
+    #     "Context information is below.\n"
+    #     "---------------------\n"
+    #     "{context_str}\n"
+    #     "---------------------\n"
+    #     "Given the context information and not prior knowledge, "
+    #     "answer the query.\n"
+    #     "Query: {query_str}\n"
+    #     "Answer: "
+    # )
+    # qa_tmpl = PromptTemplate(qa_tmpl_str)
+    # query_engine = index.as_query_engine(
+    #     llm=Settings.llm,     
+    # )
 
-    ids = image_vec_store.client.query(
-        collection_name=f"image_{user.id}",
-        filter="id != ''",
-        output_fields=["file_path", "doc_id"]    
+    # ids = image_vec_store.client.query(
+    #     collection_name=f"image_{user.id}",
+    #     filter="id != ''",
+    #     output_fields=["file_path", "doc_id"]    
+    # )
+    # print(ids)
+
+    milvus_manager = MilvusManager(
+        milvus_uri="./milvus_demo.db",
+        collection_name=f"original_{user.id}",
+        dim=1536
     )
-    print(ids)
 
     while websocket_open:
         try:
@@ -332,8 +340,18 @@ async def websocket_chat(websocket: WebSocket, token: str):
         try:
             auth_input_data = json.loads(data)
             user_input = auth_input_data.get("user_input", "")
+            query_vec = colpali_manager.process_text([user_input])[0]
+            search_res = milvus_manager.search(query_vec, topk=10)
+            docs = [doc for score, doc in search_res]
             print("Processing user input:", user_input)
-            response = query_engine.query(user_input)
+            response = ollama.chat(
+                model='llama3.2-vision',
+                messages=[{
+                    'role': 'user',
+                    'content': user_input,
+                    'images': ['image.jpg']
+                }]
+            )
 
             print("Response from multi modal:", response)
 

@@ -41,7 +41,6 @@ mm_model = OllamaMultiModal(model="llava:34b")
 router = APIRouter(prefix="/files", tags=["files"])
 
 colpali_manager = ColpaliManager()
-milvus_manager=MilvusManager()
 class FileMetadata(BaseModel):
     filename: str
     original_filename: str
@@ -122,11 +121,17 @@ async def upload_files_to_repository(
     # clip_embedding = ClipEmbedding()
     vector_store = MilvusVectorStore(
         uri="./milvus_demo.db", 
-        collection_name=f"image_{current_user.id}",
-        dim=1024,
+        collection_name=f"llama_{current_user.id}",
+        dim=1536,
         overwrite=False,
         similarity_metric="COSINE",
         index_config=index_config
+    )
+
+    milvus_manager = MilvusManager(
+        milvus_uri="./milvus_demo.db",
+        collection_name=f"original_{current_user.id}",
+        dim=1536
     )
 
     # text_vec_store = MilvusVectorStore(
@@ -167,21 +172,15 @@ async def upload_files_to_repository(
                 image.save(image_save_path, "PNG")
                 image_paths.append(image_save_path)
             
-            colpali_vecs = colpali_manager.process_images(image_paths=image_paths)
-            print(colpali_vecs[0], type)
+            colbert_vecs = colpali_manager.process_images(image_paths=image_paths)
+
             images_data = [{
-                "embedding": colpali_vecs[i],
+                "colbert_vecs": colbert_vecs[i],
                 "filepath": image_paths[i]
             } for i in range(len(image_paths))]
 
-            images_as_docs = milvus_manager.get_images_as_doc(images_with_vectors=images_data)
 
-            for i in range(len(images_as_docs)):
-                print(images_as_docs[i])
-                vector_store.client.insert(
-                    collection_name=f"image_{current_user.id}",
-                    data=images_as_docs[i]
-                )
+            milvus_manager.insert_images_data(images_data)
 
         print(f"file location: {file_location}")
         converted_file_location = file_location.replace("\\", "/")
