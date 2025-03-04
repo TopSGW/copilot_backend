@@ -169,7 +169,7 @@ async def upload_files_to_repository(
                 )
 
                 with open(txt_save_path, "w") as file:
-                    file.write(txt_response)
+                    file.write(str(txt_response.message))
 
                 simple_doc = SimpleDirectoryReader(input_files=[txt_save_path]).load_data()
                 pipe_line.run(documents=simple_doc)

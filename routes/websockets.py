@@ -354,9 +354,9 @@ async def websocket_chat(websocket: WebSocket, token: str):
                 }]
             )
 
-            print("vision modle:: ", response)
+            print("vision modle:: ", response.message)
 
-            final_answer = response
+            final_answer = str(response.message)
             # graph_response = graph_chat_engine.chat(message=user_input)
             # print("Response from graph_rag:", graph_response)
 
