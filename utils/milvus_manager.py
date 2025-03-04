@@ -29,7 +29,7 @@ class MilvusManager:
         schema.add_field(field_name="doc", datatype=DataType.VARCHAR, max_length=65535)
 
         self.client.create_collection(
-            collection_name=self.collection_name, schema=schema, metric_type="IP"
+            collection_name=self.collection_name, schema=schema, metric_type="COSINE"
         )
 
     def create_index(self):
@@ -68,7 +68,7 @@ class MilvusManager:
         )
 
     def search(self, data, topk):
-        search_params = {"metric_type": "IP", "params": {}}
+        search_params = {"metric_type": "COSINE", "params": {}}
         results = self.client.search(
             self.collection_name,
             data,
