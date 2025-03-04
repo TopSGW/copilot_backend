@@ -29,7 +29,7 @@ class MilvusManager:
         schema.add_field(field_name="doc", datatype=DataType.VARCHAR, max_length=65535)
 
         self.client.create_collection(
-            collection_name=self.collection_name, schema=schema
+            collection_name=self.collection_name, schema=schema, metric_type="IP"
         )
 
     def create_index(self):
