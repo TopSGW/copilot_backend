@@ -146,18 +146,17 @@ async def upload_files_to_repository(
             pdf_path = file_location
             images = convert_from_path(pdf_path)
             image_paths = []
-
+            text_con_prompt= """
+                Please analyze the provided image and generate a detailed, plain-language description of its contents. 
+                Include key elements such as objects, people, colors, spatial relationships, background details, and any text visible in the image. 
+                The goal is to create a comprehensive textual representation that fully conveys the visual information to someone who cannot see the image.
+            """
             for i, image in enumerate(images):
                 image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
                 txt_save_path = os.path.join(pdf_dir, f"page_{i}.txt")
                 image.save(image_save_path, "PNG")
                 image_paths.append(image_save_path)
 
-                text_con_prompt= """
-                    Please analyze the provided image and generate a detailed, plain-language description of its contents. 
-                    Include key elements such as objects, people, colors, spatial relationships, background details, and any text visible in the image. 
-                    The goal is to create a comprehensive textual representation that fully conveys the visual information to someone who cannot see the image.
-                """
                 txt_response = ollama.chat(
                     model='llama3.2-vision:90b',
                     messages=[{
@@ -166,12 +165,15 @@ async def upload_files_to_repository(
                         'images': [image_save_path]
                     }]
                 )
-
+                print("text message: ", txt_response.message)
                 with open(txt_save_path, "w") as file:
                     file.write(str(txt_response.message))
 
                 simple_doc = SimpleDirectoryReader(input_files=[txt_save_path]).load_data()
-                pipe_line.run(documents=simple_doc)
+                pipe_line.run(
+                    documents=simple_doc, 
+                    show_progress=True
+                )
 
             colbert_vecs = colpali_manager.process_images(image_paths=image_paths)
 
