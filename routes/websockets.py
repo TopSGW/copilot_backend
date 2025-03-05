@@ -323,7 +323,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     # print(ids)
 
     milvus_manager = MilvusManager(
-        milvus_uri="./milvus_demo.db",
+        milvus_uri="./milvus_original.db",
         collection_name=f"original_{user.id}"    
     )
     milvus_manager.create_index()

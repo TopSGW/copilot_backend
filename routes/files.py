@@ -124,7 +124,7 @@ async def upload_files_to_repository(
     )
 
     milvus_manager = MilvusManager(
-        milvus_uri="./milvus_demo.db",
+        milvus_uri="./milvus_original.db",
         collection_name=f"original_{current_user.id}"    
     )
     milvus_manager.create_index()
