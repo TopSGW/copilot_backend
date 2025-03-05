@@ -41,11 +41,11 @@ class MilvusManager:
         index_params.add_index(
             field_name="vector",
             index_name="vector_index",
-            index_type="HNSW", 
+            index_type="FLAT", 
             metric_type="IP", 
             params={
-                "M": 16,
-                "efConstruction": 500,
+                # "M": 16,
+                # "efConstruction": 500,
             },
         )
 
