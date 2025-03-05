@@ -68,13 +68,13 @@ class MilvusManager:
         )
 
     def search(self, data, topk):
-        # search_params = {"metric_type": "IP", "params": {}}
+        search_params = {"metric_type": "IP", "params": {}}
         results = self.client.search(
             self.collection_name,
             data,
             limit=int(50),
             output_fields=["vector", "seq_id", "doc_id"],
-            # search_params=search_params,
+            search_params=search_params,
         )
         doc_ids = set()
         for r_id in range(len(results)):
