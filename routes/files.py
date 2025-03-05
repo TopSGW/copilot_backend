@@ -127,7 +127,7 @@ async def upload_files_to_repository(
         milvus_uri="./milvus_demo.db",
         collection_name=f"original_{current_user.id}"    
     )
-
+    milvus_manager.create_index()
     uploaded_files = []
     for file in files:
         file_location = os.path.join(repo_upload_dir, file.filename)
