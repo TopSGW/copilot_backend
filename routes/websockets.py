@@ -326,7 +326,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
         milvus_uri="./milvus_demo.db",
         collection_name=f"original_{user.id}"    
     )
-
+    milvus_manager.create_index()
     while websocket_open:
         try:
             data = await websocket.receive_text()
@@ -340,7 +340,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
             auth_input_data = json.loads(data)
             user_input = auth_input_data.get("user_input", "")
             query_vec = colpali_manager.process_text([user_input])[0]
-            
+
             print(milvus_manager.client.describe_collection(f"original_{user.id}"))
 
             search_res = milvus_manager.search(query_vec, topk=10)
