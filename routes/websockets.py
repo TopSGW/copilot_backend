@@ -356,7 +356,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
                     messages=[{
                         'role': 'user',
                         'content': user_input,
-                        'images': encoded_image
+                        'images': [doc]
                     }]
                 )
                 dummy_answers.append(str(response.message))
