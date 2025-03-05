@@ -37,6 +37,7 @@ from utils.colpali_manager import ColpaliManager
 from utils.milvus_manager import MilvusManager
 import ollama
 v_llm = Ollama(model="llama3.2-vision:90b", request_timeout=120.0)
+from utils.utils import encode_image
 
 
 Settings.llm = Ollama(
@@ -347,12 +348,13 @@ async def websocket_chat(websocket: WebSocket, token: str):
             
             dummy_answers = []
             for doc in docs:
+                encoded_image = encode_image(doc)
                 response = ollama.chat(
                     model='llama3.2-vision:90b',
                     messages=[{
                         'role': 'user',
                         'content': user_input,
-                        'images': doc
+                        'images': encoded_image
                     }]
                 )
                 dummy_answers.append(str(response.message))
