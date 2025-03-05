@@ -72,10 +72,12 @@ class MilvusManager:
         results = self.client.search(
             self.collection_name,
             data,
-            limit=int(50),
+            limit=50,
             output_fields=["vector", "seq_id", "doc_id"],
             search_params=search_params,
         )
+        
+        # Gather unique doc_ids from the initial search results.
         doc_ids = set()
         for r_id in range(len(results)):
             for r in range(len(results[r_id])):
@@ -84,17 +86,23 @@ class MilvusManager:
         scores = []
 
         def rerank_single_doc(doc_id, data, client, collection_name):
+            # Query for all rows associated with a given doc_id.
             doc_colbert_vecs = client.query(
                 collection_name=collection_name,
-                filter=f"doc_id in [{doc_id}, {doc_id + 1}]",
+                filter=f"doc_id in [{doc_id}]",
                 output_fields=["seq_id", "vector", "doc"],
                 limit=1000,
             )
+            # Stack the vectors into a 2D numpy array.
             doc_vecs = np.vstack(
                 [doc_colbert_vecs[i]["vector"] for i in range(len(doc_colbert_vecs))]
             )
-            score = np.dot(data, doc_vecs.T).max(1).sum()
-            return (score, doc_id)
+            # Ensure 'data' is 2D for the dot product.
+            query = np.atleast_2d(data)
+            score = np.dot(query, doc_vecs.T).max(axis=1).sum()
+            # Retrieve the document text from the first row (as inserted, only the first row stores the filepath).
+            doc_text = doc_colbert_vecs[0]["doc"] if len(doc_colbert_vecs) > 0 else ""
+            return (score, doc_id, doc_text)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=300) as executor:
             futures = {
@@ -104,8 +112,8 @@ class MilvusManager:
                 for doc_id in doc_ids
             }
             for future in concurrent.futures.as_completed(futures):
-                score, doc_id = future.result()
-                scores.append((score, doc_id))
+                score, doc_id, doc_text = future.result()
+                scores.append((score, doc_id, doc_text))
 
         scores.sort(key=lambda x: x[0], reverse=True)
         if len(scores) >= topk:
