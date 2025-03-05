@@ -368,7 +368,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
                     role=MessageRole.USER
                 ),
                 ChatMessage.from_str(
-                    content="Please analyze the above answers and provide a concise final answer.",
+                    content=f"Please analyze the above answers and provide a concise final answer regarding following content.\n {user_input}",
                     role=MessageRole.USER
                 )
             ]
