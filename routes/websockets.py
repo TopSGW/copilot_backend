@@ -345,9 +345,11 @@ async def websocket_chat(websocket: WebSocket, token: str):
             docs = [doc for score, _ , doc in search_res]
             print("docs", docs)
             print("Processing user input:", user_input)
-            
+
             dummy_answers = []
             for doc in docs:
+                abs_path = os.path.abspath(doc)
+                print("Absolute path:", abs_path)
                 encoded_image = encode_image(doc)
                 response = ollama.chat(
                     model='llama3.2-vision:90b',
