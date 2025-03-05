@@ -19,6 +19,7 @@ from llama_index.core.vector_stores.simple import SimpleVectorStore
 from autogen_core.memory import ListMemory, MemoryContent, MemoryMimeType
 from llama_index.multi_modal_llms.ollama import OllamaMultiModal
 from llama_index.core.prompts import PromptTemplate
+from llama_index.core.llms import ChatMessage, MessageRole, TextBlock, ImageBlock
 
 
 import prompts
@@ -29,15 +30,14 @@ from auth import get_current_user, create_access_token, authenticate_user, get_p
 from config.config import ACCESS_TOKEN_EXPIRE_HOURS
 from rag.rag import run_auth_agent, authenticate_agent
 from rag.vector_rag import VectorRAG
-from llama_index.core.indices.multi_modal.base import (
-    MultiModalVectorStoreIndex,
-)
 
 from nebula3.Config import Config
 from nebula3.gclient.net import ConnectionPool
 from utils.colpali_manager import ColpaliManager
 from utils.milvus_manager import MilvusManager
 import ollama
+v_llm = Ollama(model="llama3.2-vision:90b", request_timeout=120.0)
+
 
 Settings.llm = Ollama(
     model="llama3.3:70b",
@@ -46,7 +46,6 @@ Settings.llm = Ollama(
     base_url="http://localhost:11434"
 )
 
-mm_model = OllamaMultiModal(model="llava:34b")
 colpali_manager = ColpaliManager()
 
 
@@ -345,18 +344,33 @@ async def websocket_chat(websocket: WebSocket, token: str):
             docs = [doc for score, _ , doc in search_res]
             print("docs", docs)
             print("Processing user input:", user_input)
-            response = ollama.chat(
-                model='llama3.2-vision:90b',
-                messages=[{
-                    'role': 'user',
-                    'content': user_input,
-                    'images': docs
-                }]
-            )
-
-            print("vision modle:: ", response.message)
-
+            
+            dummy_answers = []
+            for doc in docs:
+                response = ollama.chat(
+                    model='llama3.2-vision:90b',
+                    messages=[{
+                        'role': 'user',
+                        'content': user_input,
+                        'images': doc
+                    }]
+                )
+                dummy_answers.append(str(response.message))
+            print("vision modle:: ", dummy_answers)
+            messages = [
+                ChatMessage.from_str(content=prompts.RAG_SYSTEM_PROMPT, role=MessageRole.SYSTEM),
+                ChatMessage.from_str(
+                    content="Here are some answers:\n" + "\n".join(dummy_answers),
+                    role=MessageRole.USER
+                ),
+                ChatMessage.from_str(
+                    content="Please analyze the above answers and provide a concise final answer.",
+                    role=MessageRole.USER
+                )
+            ]
+            response = v_llm.chat(messages=messages)
             final_answer = str(response.message)
+
             # graph_response = graph_chat_engine.chat(message=user_input)
             # print("Response from graph_rag:", graph_response)
 
