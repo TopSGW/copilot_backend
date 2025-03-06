@@ -82,45 +82,30 @@ async def upload_files_to_repository(
 
     repo_upload_dir = os.path.join(UPLOAD_DIR, current_user.phone_number, str(repository_id))
     os.makedirs(repo_upload_dir, exist_ok=True)
-
-    # property_graph_store = NebulaPropertyGraphStore(
-    #     space=f'space_{current_user.id}'
-    # )
-    # graph_vec_store = MilvusVectorStore(
-    #     uri="./milvus_demo.db", 
-    #     collection_name=f"space_{current_user.id}",
-    #     dim=1536, 
-    #     overwrite=False,         
-    #     metric_type="COSINE",
-    #     index_type="IVF_FLAT",
-    # )
-
-    # graph_index = PropertyGraphIndex.from_existing(
-    #     property_graph_store=property_graph_store,
-    #     vector_store=graph_vec_store,
-    #     llm=Settings._llm,
-    # )
+    
     index_config = {
         "index_type": "IVF_FLAT",  # Specify the type of index
         "params": {
             "nlist": 128          # Index-specific parameter (number of clusters)
         }
     }
-    vector_store = MilvusVectorStore(
-        uri="./milvus_demo.db", 
-        collection_name=f"llama_{current_user.id}",
-        dim=8192,
-        overwrite=False,
+
+    property_graph_store = NebulaPropertyGraphStore(
+        space=f'space_{current_user.id}'
+    )
+    graph_vec_store = MilvusVectorStore(
+        uri="./milvus_graph.db", 
+        collection_name=f"space_{current_user.id}",
+        dim=8192, 
+        overwrite=False,         
         similarity_metric="COSINE",
         index_config=index_config
     )
 
-    pipe_line = IngestionPipeline(
-        transformations=[
-            SentenceSplitter(chunk_size=512, chunk_overlap=128),
-            ollama_embedding
-        ],
-        vector_store=vector_store,
+    graph_index = PropertyGraphIndex.from_existing(
+        property_graph_store=property_graph_store,
+        vector_store=graph_vec_store,
+        llm=Settings.llm,
     )
 
     milvus_manager = MilvusManager(
@@ -129,6 +114,13 @@ async def upload_files_to_repository(
     )
     milvus_manager.create_index()
     uploaded_files = []
+
+    text_con_prompt= """
+        Please analyze the provided image and generate a detailed, plain-language description of its contents. 
+        Include key elements such as objects, people, colors, spatial relationships, background details, and any text visible in the image. 
+        The goal is to create a comprehensive textual representation that fully conveys the visual information to someone who cannot see the image.
+    """
+
     for file in files:
         file_location = os.path.join(repo_upload_dir, file.filename)
         temp_dir_name, file_extension = os.path.splitext(file.filename) # Extracting the extension name
@@ -139,49 +131,78 @@ async def upload_files_to_repository(
         with open(file_location, "wb") as f:
             f.write(content)
         
-        if file_extension == '.pdf':
-            pdf_dir = os.path.join(repo_upload_dir, temp_dir_name)
-            os.makedirs(pdf_dir, exist_ok=True)
-            pdf_path = file_location
-            images = convert_from_path(pdf_path)
-            image_paths = []
-            text_con_prompt= """
-                Please analyze the provided image and generate a detailed, plain-language description of its contents. 
-                Include key elements such as objects, people, colors, spatial relationships, background details, and any text visible in the image. 
-                The goal is to create a comprehensive textual representation that fully conveys the visual information to someone who cannot see the image.
-            """
-            for i, image in enumerate(images):
-                image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
-                txt_save_path = os.path.join(pdf_dir, f"page_{i}.txt")
-                image.save(image_save_path, "PNG")
-                image_paths.append(image_save_path)
+        match file_extension: 
+            case '.txt':
+                simple_doc = SimpleDirectoryReader(input_files=[file_location]).load_data()
+                for doc in simple_doc: 
+                    graph_index.insert(doc)
 
-                # txt_response = ollama.chat(
-                #     model='llama3.2-vision:90b',
-                #     messages=[{
-                #         'role': 'user',
-                #         'content': text_con_prompt,
-                #         'images': [image_save_path]
-                #     }]
-                # )
-                # print("text message: ", txt_response.message)
-                # with open(txt_save_path, "w") as file:
-                #     file.write(str(txt_response.message))
+            case '.jpg' | '.png' | '.jpeg':
+                txt_response = ollama.chat(
+                    model='llama3.2-vision:90b',
+                    messages=[{
+                        'role': 'user',
+                        'content': text_con_prompt,
+                        'images': [image_save_path]
+                    }]
+                )
+                print("text message: ", txt_response.message)
+                txt_file_location = os.path.join(repo_upload_dir, os.path.splitext(file.filename)[0] + ".txt")
 
-                # simple_doc = SimpleDirectoryReader(input_files=[txt_save_path]).load_data()
-                # pipe_line.run(
-                #     documents=simple_doc, 
-                #     show_progress=True
-                # )
+                with open(txt_file_location, "w") as file:
+                    file.write(str(txt_response.message))
 
-            colbert_vecs = colpali_manager.process_images(image_paths=image_paths)
+                simple_doc = SimpleDirectoryReader(input_files=[txt_file_location]).load_data()
+                
+                for doc in simple_doc: 
+                    graph_index.insert(doc)
+                    
+                colbert_vecs = colpali_manager.process_images(image_paths=[file_location])
 
-            images_data = [{
-                "colbert_vecs": colbert_vecs[i],
-                "filepath": image_paths[i]
-            } for i in range(len(image_paths))]
+                images_data = [{
+                    "colbert_vecs": colbert_vecs[i],
+                    "filepath": image_paths[i]
+                } for i in range(len(image_paths))]
 
-            milvus_manager.insert_images_data(images_data)
+                milvus_manager.insert_images_data(images_data)
+
+            case '.pdf':
+                pdf_dir = os.path.join(repo_upload_dir, temp_dir_name)
+                os.makedirs(pdf_dir, exist_ok=True)
+                pdf_path = file_location
+                images = convert_from_path(pdf_path)
+                image_paths = []
+                for i, image in enumerate(images):
+                    image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
+                    txt_save_path = os.path.join(pdf_dir, f"page_{i}.txt")
+                    image.save(image_save_path, "PNG")
+                    image_paths.append(image_save_path)
+
+                    txt_response = ollama.chat(
+                        model='llama3.2-vision:90b',
+                        messages=[{
+                            'role': 'user',
+                            'content': text_con_prompt,
+                            'images': [image_save_path]
+                        }]
+                    )
+                    print("text message: ", txt_response.message)
+                    with open(txt_save_path, "w") as file:
+                        file.write(str(txt_response.message))
+
+                    simple_doc = SimpleDirectoryReader(input_files=[txt_save_path]).load_data()
+                    
+                    for doc in simple_doc: 
+                        graph_index.insert(doc)
+
+                colbert_vecs = colpali_manager.process_images(image_paths=image_paths)
+
+                images_data = [{
+                    "colbert_vecs": colbert_vecs[i],
+                    "filepath": image_paths[i]
+                } for i in range(len(image_paths))]
+
+                milvus_manager.insert_images_data(images_data)
 
         print(f"file location: {file_location}")
         converted_file_location = file_location.replace("\\", "/")

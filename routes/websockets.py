@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
 from datetime import timedelta
-from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, StorageContext
+from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, StorageContext, Document
 from llama_index.vector_stores.milvus import MilvusVectorStore
 
 from llama_index.core.ingestion import IngestionPipeline
@@ -20,7 +20,6 @@ from autogen_core.memory import ListMemory, MemoryContent, MemoryMimeType
 from llama_index.multi_modal_llms.ollama import OllamaMultiModal
 from llama_index.core.prompts import PromptTemplate
 from llama_index.core.llms import ChatMessage, MessageRole, TextBlock, ImageBlock
-
 
 import prompts
 
@@ -202,125 +201,33 @@ async def websocket_chat(websocket: WebSocket, token: str):
     await websocket.accept()
     print(f"Chat WebSocket accepted for user: {user.phone_number}")
     websocket_open = True
-    # documents = SimpleDirectoryReader("./data/blackrock").load_data()
-    # vector_store = MilvusVectorStore(
-    #     uri="./milvus_demo.db", 
-    #     collection_name=f"user_{user.id}",
-    #     dim=1536, 
-    #     overwrite=False,         
-    #     metric_type="COSINE",
-    #     index_type="IVF_FLAT",
-    # )
-    # set_graph_space(space_name=f'space_{user.id}')
-    # pipeline = IngestionPipeline(
-    #     transformations=[
-    #         SentenceSplitter(chunk_size=2048, chunk_overlap=32),
-    #         OpenAIEmbedding(),
-    #     ],
-    #     vector_store=vector_store,
-    # )
-    # pipeline.run(documents=documents)
-    # vector_index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
+    set_graph_space(space_name=f'space_{user.id}')
     memory = ChatMemoryBuffer.from_defaults(token_limit=1500)
 
-    # chat_engine = vector_index.as_chat_engine(
-    #     chat_mode='context',
-    #     memory=memory,
-    #     system_prompt=prompts.RAG_SYSTEM_PROMPT,
-    #     llm=Settings.llm
-    # )
+    property_graph_store = NebulaPropertyGraphStore(
+        space=f'space_{user.id}'
+    )
+    graph_vec_store = MilvusVectorStore(
+        uri="./milvus_graph.db", 
+        collection_name=f"space_{user.id}",
+        dim=1536, 
+        overwrite=False,         
+        metric_type="COSINE",
+        index_type="IVF_FLAT",
+    )
 
-    # property_graph_store = NebulaPropertyGraphStore(
-    #     space=f'space_{user.id}'
-    # )
-    # graph_vec_store = MilvusVectorStore(
-    #     uri="./milvus_demo.db", 
-    #     collection_name=f"space_{user.id}",
-    #     dim=1536, 
-    #     overwrite=False,         
-    #     metric_type="COSINE",
-    #     index_type="IVF_FLAT",
-    # )
+    graph_index = PropertyGraphIndex.from_existing(
+        property_graph_store=property_graph_store,
+        vector_store=graph_vec_store,
+        llm=Settings.llm,
+    )
 
-    # graph_index = PropertyGraphIndex.from_existing(
-    #     property_graph_store=property_graph_store,
-    #     vector_store=graph_vec_store,
-    #     llm=Settings._llm,
-    # )
-
-    # graph_chat_engine = graph_index.as_chat_engine(
-    #     chat_mode='context',
-    #     llm=Settings._llm,
-    #     system_prompt=prompts.RAG_SYSTEM_PROMPT,
-    #     memory=memory
-    # )
-
-    # documents = SimpleDirectoryReader(input_files=["./data/1.jpg"]).load_data()
-    # index_config = {
-    #     "index_type": "IVF_FLAT",  # Specify the type of index
-    #     "params": {
-    #         "nlist": 128          # Index-specific parameter (number of clusters)
-    #     }
-    # }
-
-    # image_vec_store = MilvusVectorStore(
-    #     uri="./milvus_demo.db", 
-    #     collection_name=f"image_{user.id}",
-    #     dim=1536,
-    #     overwrite=False,
-    #     similarity_metric="COSINE",
-    #     index_config=index_config
-    # )
-
-    # text_vec_store = MilvusVectorStore(
-    #     uri="./milvus_demo.db", 
-    #     collection_name=f"text_{user.id}",
-    #     dim=512,
-    #     overwrite=False,
-    #     similarity_metric="COSINE",
-    #     index_config=index_config
-    # )
-    # index = VectorStoreIndex.from_vector_store(
-    #     vector_store=image_vec_store
-    # )
-    # storage_context = StorageContext.from_defaults(
-    #     vector_store=text_vec_store,
-    # )
-
-    # index = MultiModalVectorStoreIndex.from_documents(
-    #     documents=documents,
-    #     storage_context=storage_context,
-    #     image_vector_store=image_vec_store
-    # )
-
-    # chat_engine = index.as_chat_engine(
-    #     chat_mode='context',
-    #     llm=mm_model,
-    #     system_prompt=prompts.RAG_SYSTEM_PROMPT,
-    #     memory=memory        
-    # )
-
-    # qa_tmpl_str = (
-    #     "Context information is below.\n"
-    #     "---------------------\n"
-    #     "{context_str}\n"
-    #     "---------------------\n"
-    #     "Given the context information and not prior knowledge, "
-    #     "answer the query.\n"
-    #     "Query: {query_str}\n"
-    #     "Answer: "
-    # )
-    # qa_tmpl = PromptTemplate(qa_tmpl_str)
-    # query_engine = index.as_query_engine(
-    #     llm=Settings.llm,     
-    # )
-
-    # ids = image_vec_store.client.query(
-    #     collection_name=f"image_{user.id}",
-    #     filter="id != ''",
-    #     output_fields=["file_path", "doc_id"]    
-    # )
-    # print(ids)
+    graph_chat_engine = graph_index.as_chat_engine(
+        chat_mode='context',
+        llm=Settings.llm,
+        system_prompt=prompts.RAG_SYSTEM_PROMPT,
+        memory=memory
+    )
 
     milvus_manager = MilvusManager(
         milvus_uri="./milvus_original.db",
@@ -346,11 +253,8 @@ async def websocket_chat(websocket: WebSocket, token: str):
             print("docs", docs)
             print("Processing user input:", user_input)
 
-            dummy_answers = []
+            documents = []
             for doc in docs:
-                abs_path = os.path.abspath(doc)
-                print("Absolute path:", abs_path)
-                encoded_image = encode_image(doc)
                 response = ollama.chat(
                     model='llama3.2-vision:90b',
                     messages=[{
@@ -359,29 +263,52 @@ async def websocket_chat(websocket: WebSocket, token: str):
                         'images': [doc]
                     }]
                 )
-                dummy_answers.append(str(response.message))
-            print("vision modle:: ", dummy_answers)
+                content = str(response.message)
+                documents.append(Document(content))
+            print("vision model:: ", documents)
+
+            index = VectorStoreIndex.from_documents(documents=documents)
+            origin_vec_query_engine = index.as_query_engine(
+                llm=Settings.llm
+            )
+            vector_answer = origin_vec_query_engine.query(user_input)
+            print("original vector answer:", vector_answer)
+
+            graph_response = graph_chat_engine.chat(message=user_input)
+            print("Response from graph_store:", graph_response)
+            
+            SYSTEM_PROMPT = """
+            Human: You are an AI assistant. You are able to find answers to the questions from the contextual passage snippets provided.
+            """.strip()
+
+            # Build the user prompt by combining vector_answer and graph_response into the <context> block,
+            # and including the user_input within the <question> block.
+            USER_PROMPT = f"""
+            Use the following pieces of information enclosed in <context> tags to provide an answer to the question enclosed in <question> tags.
+            <context>
+            {str(vector_answer)}
+            {str(graph_response)}
+            </context>
+            <question>
+            {user_input}
+            </question>
+            """.strip()
+
+            # Create the chat messages using the helper method.
             messages = [
-                ChatMessage.from_str(content=prompts.RAG_SYSTEM_PROMPT, role=MessageRole.SYSTEM),
-                ChatMessage.from_str(
-                    content="Here are some answers:\n" + "\n".join(dummy_answers),
-                    role=MessageRole.USER
-                ),
-                ChatMessage.from_str(
-                    content=f"Please analyze the above answers and provide a concise final answer regarding following content.\n {user_input}",
-                    role=MessageRole.USER
-                )
+                ChatMessage.from_str(SYSTEM_PROMPT, role=MessageRole.SYSTEM),
+                ChatMessage.from_str(USER_PROMPT, role=MessageRole.USER),
             ]
-            response = v_llm.chat(messages=messages)
-            final_answer = str(response.message)
 
-            # graph_response = graph_chat_engine.chat(message=user_input)
-            # print("Response from graph_rag:", graph_response)
+            # Call the llama-index chat interface (v_llm.chat) with the properly formatted messages.
+            final_answer = v_llm.chat(messages=messages)
 
-            if final_answer == 'Empty Response':
+            print(final_answer.message.content)
+
+            if str(final_answer.message.content) == 'Empty Response':
                 await websocket.send_json({"message": "There is no provided documents. Please upload documents."})
             else:    
-                await websocket.send_json({"message": final_answer})
+                await websocket.send_json({"message": str(final_answer.message.content)})
         except Exception as e:
             print("Error processing message:", e)
             await websocket.send_json({"message": "An error occurred processing your request."})
