@@ -253,7 +253,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
             print("docs", docs)
             print("Processing user input:", user_input)
 
-            documents = []
+            documents = ""
             for doc in docs:
                 response = ollama.chat(
                     model='llama3.2-vision:90b',
@@ -264,19 +264,9 @@ async def websocket_chat(websocket: WebSocket, token: str):
                     }]
                 )
                 content = str(response.message)
-                documents.append(Document(content))
+                documents = documents + '\n' + content
             print("vision model:: ", documents)
 
-            index = VectorStoreIndex.from_documents(documents=documents)
-            origin_vec_query_engine = index.as_query_engine(
-                llm=Settings.llm
-            )
-            vector_answer = origin_vec_query_engine.query(user_input)
-            print("original vector answer:", vector_answer)
-
-            graph_response = graph_chat_engine.chat(message=user_input)
-            print("Response from graph_store:", graph_response)
-            
             SYSTEM_PROMPT = """
             Human: You are an AI assistant. You are able to find answers to the questions from the contextual passage snippets provided.
             """.strip()
@@ -286,7 +276,32 @@ async def websocket_chat(websocket: WebSocket, token: str):
             USER_PROMPT = f"""
             Use the following pieces of information enclosed in <context> tags to provide an answer to the question enclosed in <question> tags.
             <context>
-            {str(vector_answer)}
+            {documents}
+            </context>
+            <question>
+            {user_input}
+            </question>
+            """.strip()
+
+            # Create the chat messages using the helper method.
+            messages = [
+                ChatMessage.from_str(SYSTEM_PROMPT, role=MessageRole.SYSTEM),
+                ChatMessage.from_str(USER_PROMPT, role=MessageRole.USER),
+            ]
+
+            # Call the llama-index chat interface (v_llm.chat) with the properly formatted messages.
+            vector_answer = v_llm.chat(messages=messages)            
+            print("original vector answer:", vector_answer.message.content)
+
+            graph_response = graph_chat_engine.chat(message=user_input)
+            print("Response from graph_store:", graph_response)
+            
+            # Build the user prompt by combining vector_answer and graph_response into the <context> block,
+            # and including the user_input within the <question> block.
+            USER_PROMPT = f"""
+            Use the following pieces of information enclosed in <context> tags to provide an answer to the question enclosed in <question> tags.
+            <context>
+            {str(vector_answer.message.content)}
             {str(graph_response)}
             </context>
             <question>
