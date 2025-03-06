@@ -143,7 +143,7 @@ async def upload_files_to_repository(
                     messages=[{
                         'role': 'user',
                         'content': text_con_prompt,
-                        'images': [image_save_path]
+                        'images': [file_location]
                     }]
                 )
                 print("text message: ", txt_response.message)
