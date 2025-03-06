@@ -156,8 +156,11 @@ async def upload_files_to_repository(
                 
                 for doc in simple_doc: 
                     graph_index.insert(doc)
-                    
+
                 colbert_vecs = colpali_manager.process_images(image_paths=[file_location])
+
+                image_paths = []
+                image_paths.append(file_location)    
 
                 images_data = [{
                     "colbert_vecs": colbert_vecs[i],
