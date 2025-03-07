@@ -35,7 +35,7 @@ from nebula3.gclient.net import ConnectionPool
 from utils.colpali_manager import ColpaliManager
 from utils.milvus_manager import MilvusManager
 import ollama
-v_llm = Ollama(model="llama3.2-vision:90b", request_timeout=120.0)
+v_llm = Ollama(model="llava:34b", request_timeout=120.0)
 from utils.utils import encode_image
 
 
@@ -256,7 +256,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
             documents = ""
             for doc in docs:
                 response = ollama.chat(
-                    model='llama3.2-vision:90b',
+                    model='llava:34b',
                     messages=[{
                         'role': 'user',
                         'content': user_input,
@@ -315,8 +315,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
                 ChatMessage.from_str(USER_PROMPT, role=MessageRole.USER),
             ]
 
-            # Call the llama-index chat interface (v_llm.chat) with the properly formatted messages.
-            final_answer = v_llm.chat(messages=messages)
+            final_answer = Settings.llm.chat(messages=messages)
 
             print(final_answer.message.content)
 
