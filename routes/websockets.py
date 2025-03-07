@@ -248,7 +248,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
             user_input = auth_input_data.get("user_input", "")
             query_vec = colpali_manager.process_text([user_input])[0]
 
-            search_res = milvus_manager.search(query_vec, topk=10)
+            search_res = milvus_manager.search(query_vec, topk=5)
             docs = [doc for score, _ , doc in search_res]
             print("docs", docs)
             print("Processing user input:", user_input)
@@ -256,7 +256,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
             documents = ""
             for doc in docs:
                 response = ollama.chat(
-                    model='llava:34b',
+                    model='llama3.2-vision:90b',
                     messages=[{
                         'role': 'user',
                         'content': user_input,
