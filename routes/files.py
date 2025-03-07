@@ -194,6 +194,7 @@ async def upload_files_to_repository(
                     image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
                     txt_save_path = os.path.join(pdf_dir, f"page_{i}.txt")
 
+                    print(f"page {i} is being proceed!")
                     txt_response = ollama.chat(
                         model='llava:34b',
                         messages=[{
