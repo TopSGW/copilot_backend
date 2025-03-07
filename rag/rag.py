@@ -7,6 +7,7 @@ from autogen_core import CancellationToken
 from autogen_core.memory import ListMemory
 user_memory = ListMemory()
 
+print("staring ...")
 # model_client = OpenAIChatCompletionClient(model="gpt-4o", api_key=OPENAI_API_KEY)
 
 model_client = OpenAIChatCompletionClient(
