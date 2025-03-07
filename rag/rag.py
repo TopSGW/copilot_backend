@@ -1,5 +1,6 @@
 import json
 import re
+import asyncio
 from autogen_agentchat.agents import AssistantAgent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_agentchat.teams import RoundRobinGroupChat
@@ -45,22 +46,20 @@ Example output:
     "password": ""
 }
 """
-
-authenticate_agent = AssistantAgent("auth_agent", model_client, system_message=system_prompt, memory=[user_memory])
-# rag_agent = AssistantAgent(
-#     name="rag_agent",
-#     model_client=model_client,
-#     system_message="You are a professional and knowledgeable AI assistant powered by Retrieval-Augmented Generation (RAG). Once the user has successfully signed in or registered, please proceed to address their queries with clarity, accuracy, and promptness. Generally, please answer with get_answer function calling because you are rag assistant for local documents. However, if user ask general question, you can ask LLM",
-#     tools=[get_answer]
-# )
-agent_team = RoundRobinGroupChat([authenticate_agent], max_turns=1)
+authenticate_agent = AssistantAgent(
+    name="auth_agent",
+    model_client=model_client,
+    system_message=system_prompt,
+    memory=[user_memory]
+)
 
 async def run_auth_agent(user_input: str) -> dict:
-    task_prompt = f"The user says: '{user_input}'.\n\n"
-    response = await agent_team.run(task=task_prompt)
-    print(response.messages[1].content)
-    message = response.messages[1].content
-    return json.loads(message)
+    response = await authenticate_agent.on_messages(
+        [TextMessage(content=user_input, source="user")],
+        cancellation_token=CancellationToken(),
+    )    
+    print(response.chat_message.content)
+    return json.loads(response.chat_message.content)
     # if "```json" in response.messages[1].content:
     #     pattern = r"```json(.*)```"
     #     match = re.search(pattern, response.messages[1].content, re.DOTALL)
@@ -68,3 +67,17 @@ async def run_auth_agent(user_input: str) -> dict:
     #     return json.loads(message)
     # else:
     #     return {"instruction": response.messages[1].content, "action": "ask", "phone_number": "", "password": ""}
+
+async def main():
+    # Test input for sign-up
+    test_input_signup = "I want to create a new account"
+    result_signup = await run_auth_agent(test_input_signup)
+    print("Sign-up test result:", result_signup)
+
+    # Test input for sign-in
+    test_input_signin = "I want to sign in to my existing account"
+    result_signin = await run_auth_agent(test_input_signin)
+    print("Sign-in test result:", result_signin)
+
+if __name__ == "__main__":
+    asyncio.run(main())
