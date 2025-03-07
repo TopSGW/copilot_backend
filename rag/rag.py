@@ -1,16 +1,12 @@
 import json
-import re
 import asyncio
 from autogen_agentchat.agents import AssistantAgent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
-from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
-from autogen_core.memory import ListMemory, MemoryContent, MemoryMimeType
+from autogen_core.memory import ListMemory
 user_memory = ListMemory()
 
-
-from config.config import OPENAI_API_KEY
 from .vector_rag import VectorRAG
 
 # model_client = OpenAIChatCompletionClient(model="gpt-4o", api_key=OPENAI_API_KEY)
