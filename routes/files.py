@@ -149,8 +149,8 @@ async def upload_files_to_repository(
                 print("text message: ", txt_response.message)
                 txt_file_location = os.path.join(repo_upload_dir, os.path.splitext(file.filename)[0] + ".txt")
 
-                with open(txt_file_location, "w") as file:
-                    file.write(str(txt_response.message))
+                with open(txt_file_location, "w") as m_file:
+                    m_file.write(str(txt_response.message))
 
                 simple_doc = SimpleDirectoryReader(input_files=[txt_file_location]).load_data()
                 
@@ -190,8 +190,8 @@ async def upload_files_to_repository(
                         }]
                     )
                     print("text message: ", txt_response.message)
-                    with open(txt_save_path, "w") as file:
-                        file.write(str(txt_response.message))
+                    with open(txt_save_path, "w") as m_file:
+                        m_file.write(str(txt_response.message))
 
                     simple_doc = SimpleDirectoryReader(input_files=[txt_save_path]).load_data()
                     
