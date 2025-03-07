@@ -46,7 +46,7 @@ class ColpaliManager:
         return [Image.open(path) for path in paths]
 
     @spaces.GPU
-    def process_images(self, image_paths:list[str], batch_size=5):
+    def process_images(self, image_paths:list[str], batch_size=2):
 
         print(f"Processing {len(image_paths)} image_paths")
         
@@ -65,7 +65,8 @@ class ColpaliManager:
                 batch_doc = {k: v.to(model.device) for k, v in batch_doc.items()}
                 embeddings_doc = model(**batch_doc)
             ds.extend(list(torch.unbind(embeddings_doc.to(device))))
-                
+            torch.cuda.empty_cache()  # Clear cache after each batch
+
         ds_np = [d.float().cpu().numpy() for d in ds]
 
         return ds_np
