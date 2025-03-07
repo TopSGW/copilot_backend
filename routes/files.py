@@ -182,7 +182,7 @@ async def upload_files_to_repository(
                     image_paths.append(image_save_path)
 
                     txt_response = ollama.chat(
-                        model='llama3.2-vision:90b',
+                        model='llava:34b',
                         messages=[{
                             'role': 'user',
                             'content': text_con_prompt,
