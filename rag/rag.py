@@ -4,8 +4,6 @@ from autogen_agentchat.agents import AssistantAgent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
-from autogen_core.memory import ListMemory
-user_memory = ListMemory()
 
 print("staring ...")
 # model_client = OpenAIChatCompletionClient(model="gpt-4o", api_key=OPENAI_API_KEY)
@@ -45,7 +43,6 @@ authenticate_agent = AssistantAgent(
     name="auth_agent",
     model_client=model_client,
     system_message=system_prompt,
-    memory=[user_memory]
 )
 
 async def run_auth_agent(user_input: str) -> dict:
