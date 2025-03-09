@@ -246,83 +246,84 @@ async def websocket_chat(websocket: WebSocket, token: str):
         try:
             auth_input_data = json.loads(data)
             user_input = auth_input_data.get("user_input", "")
-            query_vec = colpali_manager.process_text([user_input])[0]
+            # query_vec = colpali_manager.process_text([user_input])[0]
 
-            search_res = milvus_manager.search(query_vec, topk=5)
-            docs = [doc for score, _ , doc in search_res]
-            print("docs", docs)
-            print("Processing user input:", user_input)
+            # search_res = milvus_manager.search(query_vec, topk=5)
+            # docs = [doc for score, _ , doc in search_res]
+            # print("docs", docs)
+            # print("Processing user input:", user_input)
 
-            documents = ""
-            for doc in docs:
-                response = ollama.chat(
-                    model='llama3.2-vision:90b',
-                    messages=[{
-                        'role': 'user',
-                        'content': user_input,
-                        'images': [doc]
-                    }]
-                )
-                content = str(response.message)
-                documents = documents + '\n' + content
-            print("vision model:: ", documents)
+            # documents = ""
+            # for doc in docs:
+            #     response = ollama.chat(
+            #         model='llama3.2-vision:90b',
+            #         messages=[{
+            #             'role': 'user',
+            #             'content': user_input,
+            #             'images': [doc]
+            #         }]
+            #     )
+            #     content = str(response.message)
+            #     documents = documents + '\n' + content
+            # print("vision model:: ", documents)
 
-            SYSTEM_PROMPT = """
-            Human: You are an AI assistant. You are able to find answers to the questions from the contextual passage snippets provided.
-            """.strip()
+            # SYSTEM_PROMPT = """
+            # Human: You are an AI assistant. You are able to find answers to the questions from the contextual passage snippets provided.
+            # """.strip()
 
             # Build the user prompt by combining vector_answer and graph_response into the <context> block,
             # and including the user_input within the <question> block.
-            USER_PROMPT = f"""
-            Use the following pieces of information enclosed in <context> tags to provide an answer to the question enclosed in <question> tags.
-            <context>
-            {documents}
-            </context>
-            <question>
-            {user_input}
-            </question>
-            """.strip()
+            # USER_PROMPT = f"""
+            # Use the following pieces of information enclosed in <context> tags to provide an answer to the question enclosed in <question> tags.
+            # <context>
+            # {documents}
+            # </context>
+            # <question>
+            # {user_input}
+            # </question>
+            # """.strip()
 
-            # Create the chat messages using the helper method.
-            messages = [
-                ChatMessage.from_str(SYSTEM_PROMPT, role=MessageRole.SYSTEM),
-                ChatMessage.from_str(USER_PROMPT, role=MessageRole.USER),
-            ]
+            # # Create the chat messages using the helper method.
+            # messages = [
+            #     ChatMessage.from_str(SYSTEM_PROMPT, role=MessageRole.SYSTEM),
+            #     ChatMessage.from_str(USER_PROMPT, role=MessageRole.USER),
+            # ]
 
             # Call the llama-index chat interface (v_llm.chat) with the properly formatted messages.
-            vector_answer = v_llm.chat(messages=messages)            
-            print("original vector answer:", vector_answer.message.content)
+            # vector_answer = v_llm.chat(messages=messages)            
+            # print("original vector answer:", vector_answer.message.content)
 
             graph_response = graph_chat_engine.chat(message=user_input)
             print("Response from graph_store:", graph_response)
             
+            final_answer = str(graph_response)
             # Build the user prompt by combining vector_answer and graph_response into the <context> block,
             # and including the user_input within the <question> block.
-            USER_PROMPT = f"""
-            Use the following pieces of information enclosed in <context> tags to provide an answer to the question enclosed in <question> tags.
-            <context>
-            {str(vector_answer.message.content)}
-            {str(graph_response)}
-            </context>
-            <question>
-            {user_input}
-            </question>
-            """.strip()
+            # USER_PROMPT = f"""
+            # Use the following pieces of information enclosed in <context> tags to provide an answer to the question enclosed in <question> tags.
+            # <context>
+            # {str(vector_answer.message.content)}
+            # {str(graph_response)}
+            # </context>
+            # <question>
+            # {user_input}
+            # </question>
+            # """.strip()
 
             # Create the chat messages using the helper method.
-            messages = [
-                ChatMessage.from_str(SYSTEM_PROMPT, role=MessageRole.SYSTEM),
-                ChatMessage.from_str(USER_PROMPT, role=MessageRole.USER),
-            ]
+            # messages = [
+            #     ChatMessage.from_str(SYSTEM_PROMPT, role=MessageRole.SYSTEM),
+            #     ChatMessage.from_str(USER_PROMPT, role=MessageRole.USER),
+            # ]
 
-            final_answer = Settings.llm.chat(messages=messages)
+            # final_answer = Settings.llm.chat(messages=messages)
 
-            print(final_answer.message.content)
+            # print(final_answer.message.content)
 
-            if str(final_answer.message.content) == 'Empty Response':
+            if str(final_answer) == 'Empty Response':
                 await websocket.send_json({"message": "There is no provided documents. Please upload documents."})
             else:    
-                await websocket.send_json({"message": str(final_answer.message.content)})
+                await websocket.send_json({"message": final_answer})
         except Exception as e:
             print("Error processing message:", e)
             await websocket.send_json({"message": "An error occurred processing your request."})
