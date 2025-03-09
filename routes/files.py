@@ -196,7 +196,7 @@ async def upload_files_to_repository(
 
                     print(f"page {i} is being proceed!")
                     txt_response = ollama.chat(
-                        model='llava:34b',
+                        model='llama3.2-vision:90b',
                         messages=[{
                             'role': 'user',
                             'content': text_con_prompt,
