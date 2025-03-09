@@ -25,6 +25,8 @@ from llama_index.multi_modal_llms.ollama import OllamaMultiModal
 from pdf2image import convert_from_path
 from utils.colpali_manager import ColpaliManager
 from utils.milvus_manager import MilvusManager
+from utils.deepseekvlv2pipeline import DeepSeekVLV2Pipeline
+
 import ollama
 
 Settings.llm = Ollama(
@@ -194,18 +196,35 @@ async def upload_files_to_repository(
                     image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
                     txt_save_path = os.path.join(pdf_dir, f"page_{i}.txt")
 
+                    conversation = [
+                        {
+                            "role": "<|User|>",
+                            "content": (
+                                text_con_prompt
+                            ),
+                            "images": [
+                                image_save_path
+                            ],
+                        },
+                        {"role": "<|Assistant|>", "content": ""}
+                    ]
+                    
+                    # Initialize the pipeline
+                    pipeline = DeepSeekVLV2Pipeline(model_path="deepseek-ai/deepseek-vl2-small", device="cuda")
+                    
+                    # Load images from conversation
+                    pil_images = pipeline.load_images(conversation)
+                    
+                    # Prepare the inputs
+                    prepared_inputs = pipeline.prepare_inputs(conversation, pil_images, system_prompt="")
+                    
+                    # Generate the response
+                    txt_response = pipeline.generate_response(prepared_inputs)
+
                     print(f"page {i} is being proceed!")
-                    txt_response = ollama.chat(
-                        model='llama3.2-vision:90b',
-                        messages=[{
-                            'role': 'user',
-                            'content': text_con_prompt,
-                            'images': [image_save_path]
-                        }]
-                    )
-                    print("text message: ", txt_response.message)
+                    print("text message: ", txt_response)
                     with open(txt_save_path, "w") as m_file:
-                        m_file.write(str(txt_response.message))
+                        m_file.write(str(txt_response))
 
                     simple_doc = SimpleDirectoryReader(input_files=[txt_save_path]).load_data()
                     
