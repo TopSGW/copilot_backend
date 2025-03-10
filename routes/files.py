@@ -20,6 +20,9 @@ from pdf2image import convert_from_path
 # from utils.colpali_manager import ColpaliManager
 from utils.milvus_manager import MilvusManager
 import ollama
+import nest_asyncio
+nest_asyncio.apply()
+
 
 Settings.llm = Ollama(
     model="llama3.3:70b",
