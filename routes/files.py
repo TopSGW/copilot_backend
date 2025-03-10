@@ -7,7 +7,6 @@ from datetime import datetime
 
 from llama_index.core import SimpleDirectoryReader, PropertyGraphIndex, Settings, StorageContext, Document
 from llama_index.vector_stores.milvus import MilvusVectorStore
-from llama_index.core.vector_stores.simple import SimpleVectorStore
 from llama_index.llms.ollama import Ollama
 from llama_index.embeddings.ollama import OllamaEmbedding
 
@@ -18,9 +17,8 @@ from auth import get_current_user, User
 from config.config import UPLOAD_DIR
 
 from pdf2image import convert_from_path
-from utils.colpali_manager import ColpaliManager
+# from utils.colpali_manager import ColpaliManager
 from utils.milvus_manager import MilvusManager
-from utils.deepseekvlv2pipeline import DeepSeekpipeline
 import ollama
 
 Settings.llm = Ollama(
@@ -37,7 +35,7 @@ ollama_embedding = OllamaEmbedding(
 
 router = APIRouter(prefix="/files", tags=["files"])
 
-colpali_manager = ColpaliManager()
+# colpali_manager = ColpaliManager()
 class FileMetadata(BaseModel):
     filename: str
     original_filename: str
@@ -134,27 +132,15 @@ async def upload_files_to_repository(
                     graph_index.insert(doc)
 
             case '.jpg' | '.png' | '.jpeg':
-
-                conversation = [
-                    {
-                        "role": "<|User|>",
-                        "content": (
-                            text_con_prompt
-                        ),
-                        "images": [
-                            file_location
-                        ],
-                    },
-                    {"role": "<|Assistant|>", "content": ""}
-                ]                
-                pil_images = DeepSeekpipeline.load_images(conversation)
-                    
-                    # Prepare the inputs
-                prepared_inputs = DeepSeekpipeline.prepare_inputs(conversation, pil_images, system_prompt="")
-                    
-                    # Generate the response
-                txt_response = DeepSeekpipeline.generate_response(prepared_inputs)
-
+                txt_response = ollama.chat(
+                    model='llama3.2-vision:90b',
+                    messages=[{
+                        'role': 'user',
+                        'content': text_con_prompt,
+                        'images': [file_location]
+                    }]
+                )
+                print("text message: ", txt_response.message)
                 txt_file_location = os.path.join(repo_upload_dir, os.path.splitext(file.filename)[0] + ".txt")
 
                 with open(txt_file_location, "w") as m_file:
@@ -165,17 +151,17 @@ async def upload_files_to_repository(
                 for doc in simple_doc: 
                     graph_index.insert(doc)
 
-                colbert_vecs = colpali_manager.process_images(image_paths=[file_location])
+                # colbert_vecs = colpali_manager.process_images(image_paths=[file_location])
 
-                image_paths = []
-                image_paths.append(file_location)    
+                # image_paths = []
+                # image_paths.append(file_location)    
 
-                images_data = [{
-                    "colbert_vecs": colbert_vecs[i],
-                    "filepath": image_paths[i]
-                } for i in range(len(image_paths))]
+                # images_data = [{
+                #     "colbert_vecs": colbert_vecs[i],
+                #     "filepath": image_paths[i]
+                # } for i in range(len(image_paths))]
 
-                milvus_manager.insert_images_data(images_data)
+                # milvus_manager.insert_images_data(images_data)
 
             case '.pdf':
                 pdf_dir = os.path.join(repo_upload_dir, temp_dir_name)
@@ -189,46 +175,31 @@ async def upload_files_to_repository(
                     image.save(image_save_path, "PNG")
                     image_paths.append(image_save_path)
 
-                colbert_vecs = colpali_manager.process_images(image_paths=image_paths)
+                # colbert_vecs = colpali_manager.process_images(image_paths=image_paths)
 
-                images_data = [{
-                    "colbert_vecs": colbert_vecs[i],
-                    "filepath": image_paths[i]
-                } for i in range(len(image_paths))]
+                # images_data = [{
+                #     "colbert_vecs": colbert_vecs[i],
+                #     "filepath": image_paths[i]
+                # } for i in range(len(image_paths))]
 
-                milvus_manager.insert_images_data(images_data)
+                # milvus_manager.insert_images_data(images_data)
 
                 for i, image in enumerate(images):
                     image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
                     txt_save_path = os.path.join(pdf_dir, f"page_{i}.txt")
 
-                    conversation = [
-                        {
-                            "role": "<|User|>",
-                            "content": (
-                                text_con_prompt
-                            ),
-                            "images": [
-                                image_save_path
-                            ],
-                        },
-                        {"role": "<|Assistant|>", "content": ""}
-                    ]
-                    
-                    # Initialize the pipeline                    
-                    # Load images from conversation
-                    pil_images = DeepSeekpipeline.load_images(conversation)
-                    
-                    # Prepare the inputs
-                    prepared_inputs = DeepSeekpipeline.prepare_inputs(conversation, pil_images, system_prompt="")
-                    
-                    # Generate the response
-                    txt_response = DeepSeekpipeline.generate_response(prepared_inputs)
-
                     print(f"page {i} is being proceed!")
-                    print("text message: ", txt_response)
+                    txt_response = ollama.chat(
+                        model='llama3.2-vision:90b',
+                        messages=[{
+                            'role': 'user',
+                            'content': text_con_prompt,
+                            'images': [image_save_path]
+                        }]
+                    )
+                    print("text message: ", txt_response.message)
                     with open(txt_save_path, "w") as m_file:
-                        m_file.write(str(txt_response))
+                        m_file.write(str(txt_response.message))
 
                     simple_doc = SimpleDirectoryReader(input_files=[txt_save_path]).load_data()
                     

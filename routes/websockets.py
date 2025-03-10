@@ -24,12 +24,10 @@ from rag.vector_rag import VectorRAG
 
 from nebula3.Config import Config
 from nebula3.gclient.net import ConnectionPool
-from utils.colpali_manager import ColpaliManager
 from utils.milvus_manager import MilvusManager
-from utils.deepseekvlv2pipeline import DeepSeekpipeline
+# from utils.deepseekvlv2pipeline import DeepSeekpipeline
 
 import ollama
-v_llm = Ollama(model="llava:34b", request_timeout=120.0)
 
 Settings.llm = Ollama(
     model="llama3.3:70b",
@@ -38,7 +36,7 @@ Settings.llm = Ollama(
     base_url="http://localhost:11434"
 )
 
-colpali_manager = ColpaliManager()
+# colpali_manager = ColpaliManager()
 
 
 def set_graph_space(space_name: str):
@@ -238,66 +236,66 @@ async def websocket_chat(websocket: WebSocket, token: str):
         try:
             auth_input_data = json.loads(data)
             user_input = auth_input_data.get("user_input", "")
-            query_vec = colpali_manager.process_text([user_input])[0]
+            # query_vec = colpali_manager.process_text([user_input])[0]
 
-            search_res = milvus_manager.search(query_vec, topk=5)
-            docs = [doc for score, _ , doc in search_res]
-            print("docs", docs)
-            print("Processing user input:", user_input)
+            # search_res = milvus_manager.search(query_vec, topk=5)
+            # docs = [doc for score, _ , doc in search_res]
+            # print("docs", docs)
+            # print("Processing user input:", user_input)
 
-            conversation = [
-                {
-                    "role": "<|User|>",
-                    "content": (
-                        user_input
-                    ),
-                    "images": docs,
-                },
-                {"role": "<|Assistant|>", "content": ""}
-            ]
+            # conversation = [
+            #     {
+            #         "role": "<|User|>",
+            #         "content": (
+            #             user_input
+            #         ),
+            #         "images": docs,
+            #     },
+            #     {"role": "<|Assistant|>", "content": ""}
+            # ]
 
-            pil_images = DeepSeekpipeline.load_images(conversation)
+            # pil_images = DeepSeekpipeline.load_images(conversation)
 
-            prepared_inputs = DeepSeekpipeline.prepare_inputs(conversation, pil_images, system_prompt=prompts.RAG_SYSTEM_PROMPT)
+            # prepared_inputs = DeepSeekpipeline.prepare_inputs(conversation, pil_images, system_prompt=prompts.RAG_SYSTEM_PROMPT)
 
-            vec_answer = DeepSeekpipeline.generate_response(prepared_inputs)
+            # vec_answer = DeepSeekpipeline.generate_response(prepared_inputs)
 
-            print(f"{prepared_inputs['sft_format'][0]}\n{vec_answer}")
+            # print(f"{prepared_inputs['sft_format'][0]}\n{vec_answer}")
             
-            SYSTEM_PROMPT = """
-            Human: You are an AI assistant. You are able to find answers to the questions from the contextual passage snippets provided.
-            """.strip()
+            # SYSTEM_PROMPT = """
+            # Human: You are an AI assistant. You are able to find answers to the questions from the contextual passage snippets provided.
+            # """.strip()
 
             graph_response = graph_chat_engine.chat(message=user_input)
             print("Response from graph_store:", graph_response)
             
             # Build the user prompt by combining vector_answer and graph_response into the <context> block,
             # and including the user_input within the <question> block.
-            USER_PROMPT = f"""
-            Use the following pieces of information enclosed in <context> tags to provide an answer to the question enclosed in <question> tags.
-            <context>
-            {vec_answer}
-            {str(graph_response)}
-            </context>
-            <question>
-            {user_input}
-            </question>
-            """.strip()
+            # USER_PROMPT = f"""
+            # Use the following pieces of information enclosed in <context> tags to provide an answer to the question enclosed in <question> tags.
+            # <context>
+            # {vec_answer}
+            # {str(graph_response)}
+            # </context>
+            # <question>
+            # {user_input}
+            # </question>
+            # """.strip()
 
             # Create the chat messages using the helper method.
-            messages = [
-                ChatMessage.from_str(SYSTEM_PROMPT, role=MessageRole.SYSTEM),
-                ChatMessage.from_str(USER_PROMPT, role=MessageRole.USER),
-            ]
+            # messages = [
+            #     ChatMessage.from_str(SYSTEM_PROMPT, role=MessageRole.SYSTEM),
+            #     ChatMessage.from_str(USER_PROMPT, role=MessageRole.USER),
+            # ]
 
-            final_answer = Settings.llm.chat(messages=messages)
+            # final_answer = Settings.llm.chat(messages=messages)
+            final_answer= str(graph_response)
+            print(final_answer)
 
-            print(final_answer.message.content)
-
-            if str(final_answer.message.content) == 'Empty Response':
+            if str(final_answer) == 'Empty Response':
                 await websocket.send_json({"message": "There is no provided documents. Please upload documents."})
             else:    
-                await websocket.send_json({"message": final_answer.message.content})
+                await websocket.send_json({"message": final_answer})
         except Exception as e:
             print("Error processing message:", e)
             await websocket.send_json({"message": "An error occurred processing your request."})
