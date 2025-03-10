@@ -189,8 +189,8 @@ async def upload_files_to_repository(
 
                     simple_doc = SimpleDirectoryReader(input_files=[txt_save_path]).load_data()
                     
-                    async for doc in simple_doc: 
-                        await graph_index.insert(doc)
+                    for doc in simple_doc: 
+                        graph_index.insert(doc)
                 # colbert_vecs = colpali_manager.process_images(image_paths=image_paths)
 
                 # images_data = [{
