@@ -5,20 +5,12 @@ from sqlalchemy.orm import Session
 from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
 from datetime import timedelta
-from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, StorageContext, Document
 from llama_index.vector_stores.milvus import MilvusVectorStore
 
-from llama_index.core.ingestion import IngestionPipeline
-from llama_index.core.node_parser import SentenceSplitter
-from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core import PropertyGraphIndex, Settings
 from llama_index.llms.ollama import Ollama
 from llama_index.graph_stores.nebula import NebulaPropertyGraphStore
-from llama_index.core.vector_stores.simple import SimpleVectorStore
-from autogen_core.memory import ListMemory, MemoryContent, MemoryMimeType
-from llama_index.multi_modal_llms.ollama import OllamaMultiModal
-from llama_index.core.prompts import PromptTemplate
 from llama_index.core.llms import ChatMessage, MessageRole, TextBlock, ImageBlock
 
 import prompts

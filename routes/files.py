@@ -11,16 +11,11 @@ from llama_index.core.vector_stores.simple import SimpleVectorStore
 from llama_index.llms.ollama import Ollama
 from llama_index.embeddings.ollama import OllamaEmbedding
 
-from llama_index.core.ingestion import IngestionPipeline
-from llama_index.core.node_parser import SentenceSplitter
-from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.graph_stores.nebula import NebulaPropertyGraphStore
 
 from databases.database import FileRecord, Repository, get_db
 from auth import get_current_user, User
 from config.config import UPLOAD_DIR
-
-from llama_index.multi_modal_llms.ollama import OllamaMultiModal
 
 from pdf2image import convert_from_path
 from utils.colpali_manager import ColpaliManager
@@ -140,15 +135,20 @@ async def upload_files_to_repository(
                     graph_index.insert(doc)
 
             case '.jpg' | '.png' | '.jpeg':
-                txt_response = ollama.chat(
-                    model='llama3.2-vision:90b',
-                    messages=[{
-                        'role': 'user',
-                        'content': text_con_prompt,
-                        'images': [file_location]
-                    }]
-                )
+                conversation = [
+                    {
+                        "role": "<|User|>",
+                        "content": (
+                            text_con_prompt
+                        ),
+                        "images": [
+                            file_location
+                        ],
+                    },
+                    {"role": "<|Assistant|>", "content": ""}
+                ]                
                 print("text message: ", txt_response.message)
+
                 txt_file_location = os.path.join(repo_upload_dir, os.path.splitext(file.filename)[0] + ".txt")
 
                 with open(txt_file_location, "w") as m_file:
