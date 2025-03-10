@@ -97,7 +97,7 @@ def main():
                 "This is image_1: <image>\n What is the Abraham?"
             ),
             "images": [
-                "data/1.jpg",
+                "/workspace/copilot_backend/data/1.jpg",
             ],
         },
         {"role": "<|Assistant|>", "content": ""}
