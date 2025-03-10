@@ -18,6 +18,7 @@ vl_gpt = vl_gpt.to(torch.bfloat16).cuda().eval()
 
 
 # multiple images/interleaved image-text
+print("running>>-----------------------------------------")
 conversation = [
     {
         "role": "<|User|>",
