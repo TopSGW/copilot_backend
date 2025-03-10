@@ -140,11 +140,11 @@ async def upload_files_to_repository(
                         'images': [file_location]
                     }]
                 )
-                print("text message: ", txt_response.message)
+                print("text message: ", txt_response.message.content)
                 txt_file_location = os.path.join(repo_upload_dir, os.path.splitext(file.filename)[0] + ".txt")
 
                 with open(txt_file_location, "w") as image_file:
-                    image_file.write(str(txt_response.message))
+                    image_file.write(str(txt_response.message.content))
 
                 simple_doc = SimpleDirectoryReader(input_files=[txt_file_location]).load_data()
                 
@@ -183,14 +183,14 @@ async def upload_files_to_repository(
                             'images': [image_save_path]
                         }]
                     )
-                    print("text message: ", txt_response.message)
+                    print("text message: ", txt_response.message.content)
                     with open(txt_save_path, "w") as m_file:
-                        m_file.write(str(txt_response.message))
+                        m_file.write(str(txt_response.message.content))
 
                     simple_doc = SimpleDirectoryReader(input_files=[txt_save_path]).load_data()
                     
-                    for doc in simple_doc: 
-                        graph_index.insert(doc)
+                    async for doc in simple_doc: 
+                        await graph_index.insert(doc)
                 # colbert_vecs = colpali_manager.process_images(image_paths=image_paths)
 
                 # images_data = [{
