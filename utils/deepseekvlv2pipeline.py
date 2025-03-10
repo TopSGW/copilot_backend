@@ -7,7 +7,9 @@ from deepseek_vl2.utils.io import load_pil_images
 
 # specify the path to the model
 model_path = "deepseek-ai/deepseek-vl2-small"
+print("torch dddsss ??? model path")
 vl_chat_processor: DeepseekVLV2Processor = DeepseekVLV2Processor.from_pretrained(model_path)
+print("torch dddsss tokenizer ????????????????????????????????????")
 tokenizer = vl_chat_processor.tokenizer
 
 vl_gpt: DeepseekVLV2ForCausalLM = AutoModelForCausalLM.from_pretrained(model_path, trust_remote_code=True)
