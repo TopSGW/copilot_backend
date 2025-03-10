@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 from transformers import AutoModelForCausalLM
 from deepseek_vl2.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
 from deepseek_vl2.utils.io import load_pil_images
@@ -16,7 +17,11 @@ class DeepSeekVLV2Pipeline:
         
         # Load the model and set to evaluation mode
         self.model = AutoModelForCausalLM.from_pretrained(model_path, trust_remote_code=True)
-        self.model = self.model.to(torch.bfloat16).to(device).eval()
+        self.model = self.model.to(torch.bfloat16).to(device)
+
+        if device == "cuda" and torch.cuda.device_count() > 1:
+            self.model = nn.DataParallel(self.model)
+        self.model.eval()
     
     @spaces.GPU
     def load_images(self, conversation):
