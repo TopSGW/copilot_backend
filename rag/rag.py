@@ -1,5 +1,5 @@
 import json
-from autogen_agentchat.agents import AssistantAgent
+from autogen import AssistantAgent
 from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
 
@@ -38,7 +38,6 @@ authenticate_agent = AssistantAgent(
     llm_config={"config_list": config_list},
     system_message=system_prompt,
 )
-
 
 async def run_auth_agent(user_input: str) -> dict:
     response = await authenticate_agent.on_messages(
