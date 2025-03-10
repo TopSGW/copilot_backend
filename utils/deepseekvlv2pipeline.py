@@ -2,6 +2,7 @@ import torch
 from transformers import AutoModelForCausalLM
 from deepseek_vl2.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
 from deepseek_vl2.utils.io import load_pil_images
+import spaces
 
 class DeepSeekVLV2Pipeline:
     def __init__(self, model_path="deepseek-ai/deepseek-vl2-small", device="cuda"):
@@ -17,12 +18,14 @@ class DeepSeekVLV2Pipeline:
         self.model = AutoModelForCausalLM.from_pretrained(model_path, trust_remote_code=True)
         self.model = self.model.to(torch.bfloat16).to(device).eval()
     
+    @spaces.GPU
     def load_images(self, conversation):
         """
         Load PIL images from the conversation image paths.
         """
         return load_pil_images(conversation)
     
+    @spaces.GPU
     def prepare_inputs(self, conversation, pil_images, system_prompt=""):
         """
         Prepare the inputs for the model given the conversation and images.
@@ -35,6 +38,7 @@ class DeepSeekVLV2Pipeline:
         ).to(self.device)
         return prepared
     
+    @spaces.GPU
     def generate_response(self, prepare_inputs):
         """
         Generate a response using incremental prefilling and text generation.
@@ -79,39 +83,33 @@ class DeepSeekVLV2Pipeline:
 
 DeepSeekpipeline = DeepSeekVLV2Pipeline(model_path="deepseek-ai/deepseek-vl2-small", device="cuda")
 
-# def main():
-#     # Define a conversation with interleaved image and text content.
-#     conversation = [
-#         {
-#             "role": "<|User|>",
-#             "content": (
-#                 "This is image_1: <image>\n"
-#                 "This is image_2: <image>\n"
-#                 "This is image_3: <image>\n Can you tell me what are in the images?"
-#             ),
-#             "images": [
-#                 "images/multi_image_1.jpeg",
-#                 "images/multi_image_2.jpeg",
-#                 "images/multi_image_3.jpeg",
-#             ],
-#         },
-#         {"role": "<|Assistant|>", "content": ""}
-#     ]
+def main():
+    # Define a conversation with interleaved image and text content.
+    conversation = [
+        {
+            "role": "<|User|>",
+            "content": (
+                "This is image_1: <image>\n What is the Abraham?"
+            ),
+            "images": [
+                "data/1.jpg",
+            ],
+        },
+        {"role": "<|Assistant|>", "content": ""}
+    ]
     
-#     # Initialize the pipeline
-#     pipeline = DeepSeekVLV2Pipeline(model_path="deepseek-ai/deepseek-vl2-small", device="cuda")
+    # Initialize the pipeline    
+    # Load images from conversation
+    pil_images = DeepSeekpipeline.load_images(conversation)
     
-#     # Load images from conversation
-#     pil_images = pipeline.load_images(conversation)
+    # Prepare the inputs
+    prepared_inputs = DeepSeekpipeline.prepare_inputs(conversation, pil_images, system_prompt="")
     
-#     # Prepare the inputs
-#     prepared_inputs = pipeline.prepare_inputs(conversation, pil_images, system_prompt="")
+    # Generate the response
+    answer = DeepSeekpipeline.generate_response(prepared_inputs)
     
-#     # Generate the response
-#     answer = pipeline.generate_response(prepared_inputs)
-    
-#     # Display the formatted result using the processor's formatting.
-#     print(f"{prepared_inputs['sft_format'][0]}\n{answer}")
+    # Display the formatted result using the processor's formatting.
+    print(f"{prepared_inputs['sft_format'][0]}\n{answer}")
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
