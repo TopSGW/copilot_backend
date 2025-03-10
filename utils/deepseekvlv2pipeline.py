@@ -21,7 +21,7 @@ vl_gpt = vl_gpt.to(torch.bfloat16).cuda().eval()
 conversation = [
     {
         "role": "<|User|>",
-        "content": "This is image_3: <image>\n Who is Abraham?",
+        "content": "Who is Abraham?",
         "images": [
             "/workspace/copilot_backend/data/1.jpg"
         ],
