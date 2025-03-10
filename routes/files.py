@@ -168,24 +168,10 @@ async def upload_files_to_repository(
                 os.makedirs(pdf_dir, exist_ok=True)
                 pdf_path = file_location
                 images = convert_from_path(pdf_path)
-                image_paths = []
 
                 for i, image in enumerate(images):
                     image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
                     image.save(image_save_path, "PNG")
-                    image_paths.append(image_save_path)
-
-                # colbert_vecs = colpali_manager.process_images(image_paths=image_paths)
-
-                # images_data = [{
-                #     "colbert_vecs": colbert_vecs[i],
-                #     "filepath": image_paths[i]
-                # } for i in range(len(image_paths))]
-
-                # milvus_manager.insert_images_data(images_data)
-
-                for i, image in enumerate(images):
-                    image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
                     txt_save_path = os.path.join(pdf_dir, f"page_{i}.txt")
 
                     print(f"page {i} is being proceed!")
@@ -205,8 +191,14 @@ async def upload_files_to_repository(
                     
                     for doc in simple_doc: 
                         graph_index.insert(doc)
+                # colbert_vecs = colpali_manager.process_images(image_paths=image_paths)
 
+                # images_data = [{
+                #     "colbert_vecs": colbert_vecs[i],
+                #     "filepath": image_paths[i]
+                # } for i in range(len(image_paths))]
 
+                # milvus_manager.insert_images_data(images_data)
         print(f"file location: {file_location}")
         converted_file_location = file_location.replace("\\", "/")
         print(f"converted_file_location: {converted_file_location}")
