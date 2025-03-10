@@ -77,6 +77,8 @@ class DeepSeekVLV2Pipeline:
             )
         return answer
 
+DeepSeekpipeline = DeepSeekVLV2Pipeline(model_path="deepseek-ai/deepseek-vl2-small", device="cuda")
+
 # def main():
 #     # Define a conversation with interleaved image and text content.
 #     conversation = [

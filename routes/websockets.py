@@ -26,7 +26,7 @@ from nebula3.Config import Config
 from nebula3.gclient.net import ConnectionPool
 from utils.colpali_manager import ColpaliManager
 from utils.milvus_manager import MilvusManager
-from utils.deepseekvlv2pipeline import DeepSeekVLV2Pipeline
+from utils.deepseekvlv2pipeline import DeepSeekpipeline
 
 import ollama
 v_llm = Ollama(model="llava:34b", request_timeout=120.0)
@@ -256,13 +256,11 @@ async def websocket_chat(websocket: WebSocket, token: str):
                 {"role": "<|Assistant|>", "content": ""}
             ]
 
-            pipeline = DeepSeekVLV2Pipeline(model_path="deepseek-ai/deepseek-vl2-small", device="cuda")
+            pil_images = DeepSeekpipeline.load_images(conversation)
 
-            pil_images = pipeline.load_images(conversation)
+            prepared_inputs = DeepSeekpipeline.prepare_inputs(conversation, pil_images, system_prompt=prompts.RAG_SYSTEM_PROMPT)
 
-            prepared_inputs = pipeline.prepare_inputs(conversation, pil_images, system_prompt=prompts.RAG_SYSTEM_PROMPT)
-
-            vec_answer = pipeline.generate_response(prepared_inputs)
+            vec_answer = DeepSeekpipeline.generate_response(prepared_inputs)
 
             print(f"{prepared_inputs['sft_format'][0]}\n{vec_answer}")
             

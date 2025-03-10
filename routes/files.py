@@ -20,8 +20,7 @@ from config.config import UPLOAD_DIR
 from pdf2image import convert_from_path
 from utils.colpali_manager import ColpaliManager
 from utils.milvus_manager import MilvusManager
-from utils.deepseekvlv2pipeline import DeepSeekVLV2Pipeline
-
+from utils.deepseekvlv2pipeline import DeepSeekpipeline
 import ollama
 
 Settings.llm = Ollama(
@@ -135,6 +134,7 @@ async def upload_files_to_repository(
                     graph_index.insert(doc)
 
             case '.jpg' | '.png' | '.jpeg':
+
                 conversation = [
                     {
                         "role": "<|User|>",
@@ -147,7 +147,13 @@ async def upload_files_to_repository(
                     },
                     {"role": "<|Assistant|>", "content": ""}
                 ]                
-                print("text message: ", txt_response.message)
+                pil_images = DeepSeekpipeline.load_images(conversation)
+                    
+                    # Prepare the inputs
+                prepared_inputs = DeepSeekpipeline.prepare_inputs(conversation, pil_images, system_prompt="")
+                    
+                    # Generate the response
+                txt_response = DeepSeekpipeline.generate_response(prepared_inputs)
 
                 txt_file_location = os.path.join(repo_upload_dir, os.path.splitext(file.filename)[0] + ".txt")
 
@@ -209,17 +215,15 @@ async def upload_files_to_repository(
                         {"role": "<|Assistant|>", "content": ""}
                     ]
                     
-                    # Initialize the pipeline
-                    pipeline = DeepSeekVLV2Pipeline(model_path="deepseek-ai/deepseek-vl2-small", device="cuda")
-                    
+                    # Initialize the pipeline                    
                     # Load images from conversation
-                    pil_images = pipeline.load_images(conversation)
+                    pil_images = DeepSeekpipeline.load_images(conversation)
                     
                     # Prepare the inputs
-                    prepared_inputs = pipeline.prepare_inputs(conversation, pil_images, system_prompt="")
+                    prepared_inputs = DeepSeekpipeline.prepare_inputs(conversation, pil_images, system_prompt="")
                     
                     # Generate the response
-                    txt_response = pipeline.generate_response(prepared_inputs)
+                    txt_response = DeepSeekpipeline.generate_response(prepared_inputs)
 
                     print(f"page {i} is being proceed!")
                     print("text message: ", txt_response)
