@@ -23,7 +23,7 @@ conversation = [
         "role": "<|User|>",
         "content": "This is image_3: <image>\n Who is Abraham?",
         "images": [
-            "data/1.jpg"
+            "/workspace/copilot_backend/data/1.jpg"
         ],
     },
     {"role": "<|Assistant|>", "content": ""}
