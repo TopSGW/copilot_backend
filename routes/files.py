@@ -44,7 +44,7 @@ router = APIRouter(prefix="/files", tags=["files"])
 
 # Create a thread pool executor for file processing
 # Adjust max_workers based on your system's capabilities
-file_processor = ThreadPoolExecutor(max_workers=4)
+file_processor = ThreadPoolExecutor(max_workers=20)
 
 class FileMetadata(BaseModel):
     filename: str
