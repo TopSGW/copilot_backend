@@ -1,5 +1,6 @@
 import os
 import threading
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -76,6 +77,13 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
     This function handles different file types and creates appropriate indexes.
     """
     try:
+        # Ensure the current thread has an event loop
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
         # Extract filename and extension
         filename = os.path.basename(file_location)
         temp_dir_name, file_extension = os.path.splitext(filename)
@@ -128,7 +136,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
         match file_extension: 
             case '.txt':
                 simple_doc = SimpleDirectoryReader(input_files=[file_location]).load_data()
-                for doc in simple_doc: 
+                for doc in simple_doc:
                     graph_index.insert(doc)
 
             case '.jpg' | '.png' | '.jpeg':
