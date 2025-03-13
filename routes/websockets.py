@@ -27,7 +27,7 @@ from rag.vector_rag import VectorRAG
 
 from nebula3.Config import Config
 from nebula3.gclient.net import ConnectionPool
-from utils.milvus_manager import MilvusManager
+# from utils.milvus_manager import MilvusManager
 
 # from utils.deepseekvlv2pipeline import DeepSeekpipeline
 
@@ -204,7 +204,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     graph_vec_store = MilvusVectorStore(
         uri="./milvus_graph.db", 
         collection_name=f"space_{user.id}",
-        dim=1536, 
+        dim=8192, 
         overwrite=False,         
         metric_type="COSINE",
         index_type="IVF_FLAT",
@@ -223,11 +223,11 @@ async def websocket_chat(websocket: WebSocket, token: str):
         memory=memory
     )
 
-    milvus_manager = MilvusManager(
-        milvus_uri="./milvus_original.db",
-        collection_name=f"original_{user.id}"    
-    )
-    milvus_manager.create_index()
+    # milvus_manager = MilvusManager(
+    #     milvus_uri="./milvus_original.db",
+    #     collection_name=f"original_{user.id}"    
+    # )
+    # milvus_manager.create_index()
     while websocket_open:
         try:
             data = await websocket.receive_text()
