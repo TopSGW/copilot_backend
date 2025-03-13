@@ -150,7 +150,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                     }]
                 )
                 print("text response:", txt_response.message.content)
-                # print(f"Thread {threading.current_thread().name} - Image text response received")
+                print(f"Thread {threading.current_thread().name} - Image text response received")
                 txt_file_location = os.path.join(repo_upload_dir, os.path.splitext(filename)[0] + ".txt")
 
                 with open(txt_file_location, "w") as image_file:
@@ -259,13 +259,12 @@ async def upload_files_to_repository(
         uploaded_files.append(FileMetadata.model_validate(file_record))
         
         # # Submit file processing task to thread pool
-        # file_processor.submit(
-        #     process_file_for_training, 
-        #     file_location, 
-        #     current_user.id, 
-        #     repository_id
-        # )
-        process_file_for_training(file_location=file_location, user_id=current_user.id, repository_id=repository_id)
+        file_processor.submit(
+            process_file_for_training, 
+            file_location, 
+            current_user.id, 
+            repository_id
+        )
         print(f"Submitted file {file.filename} for background processing")
 
     return FileResponse(
