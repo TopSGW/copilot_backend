@@ -1,15 +1,16 @@
 import os
+import threading
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 
 from llama_index.core import SimpleDirectoryReader, PropertyGraphIndex, Settings, StorageContext, Document
 from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.llms.ollama import Ollama
 from llama_index.embeddings.ollama import OllamaEmbedding
-from concurrent.futures import ThreadPoolExecutor
 
 from llama_index.graph_stores.nebula import NebulaPropertyGraphStore
 
@@ -22,6 +23,7 @@ from pdf2image import convert_from_path
 from utils.milvus_manager import MilvusManager
 import ollama
 
+# Configure LLM and embedding models
 Settings.llm = Ollama(
     model="llama3.3:70b",
     temperature=0.3,
@@ -29,17 +31,21 @@ Settings.llm = Ollama(
     base_url="http://localhost:11434"
 )
 
+# Define embedding model explicitly
 ollama_embedding = OllamaEmbedding(
     model_name="llama3.3:70b",
     base_url="http://localhost:11434",
 )
 
+# Set the embedding model for all indices
 Settings.embed_model = ollama_embedding
 
 router = APIRouter(prefix="/files", tags=["files"])
 
-file_processor = ThreadPoolExecutor(max_workers=10)
-# colpali_manager = ColpaliManager()
+# Create a thread pool executor for file processing
+# Adjust max_workers based on your system's capabilities
+file_processor = ThreadPoolExecutor(max_workers=4)
+
 class FileMetadata(BaseModel):
     filename: str
     original_filename: str
@@ -69,192 +75,120 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
     Process uploaded files for training and indexing based on file type.
     This function handles different file types and creates appropriate indexes.
     """
-    # Extract filename and extension
-    filename = os.path.basename(file_location)
-    temp_dir_name, file_extension = os.path.splitext(filename)
-    repo_upload_dir = os.path.dirname(file_location)
-    
-    print(f"Processing file: {filename}, Extension: {file_extension}")
-    
-    # Initialize index and vector stores
-    index_config = {
-        "index_type": "IVF_FLAT",  # Specify the type of index
-        "params": {
-            "nlist": 128          # Index-specific parameter (number of clusters)
+    try:
+        # Extract filename and extension
+        filename = os.path.basename(file_location)
+        temp_dir_name, file_extension = os.path.splitext(filename)
+        repo_upload_dir = os.path.dirname(file_location)
+        
+        print(f"Thread {threading.current_thread().name} - Processing file: {filename}, Extension: {file_extension}")
+        
+        # Initialize index and vector stores
+        index_config = {
+            "index_type": "IVF_FLAT",  # Specify the type of index
+            "params": {
+                "nlist": 128          # Index-specific parameter (number of clusters)
+            }
         }
-    }
 
-    property_graph_store = NebulaPropertyGraphStore(
-        space=f'space_{user_id}'
-    )
-    graph_vec_store = MilvusVectorStore(
-        uri="./milvus_graph.db", 
-        collection_name=f"space_{user_id}",
-        dim=8192, 
-        overwrite=False,         
-        similarity_metric="COSINE",
-        index_config=index_config
-    )
+        property_graph_store = NebulaPropertyGraphStore(
+            space=f'space_{user_id}'
+        )
+        graph_vec_store = MilvusVectorStore(
+            uri="./milvus_graph.db", 
+            collection_name=f"space_{user_id}",
+            dim=8192, 
+            overwrite=False,         
+            similarity_metric="COSINE",
+            index_config=index_config
+        )
 
-    graph_index = PropertyGraphIndex.from_existing(
-        property_graph_store=property_graph_store,
-        vector_store=graph_vec_store,
-        llm=Settings.llm,
-    )
+        graph_index = PropertyGraphIndex.from_existing(
+            property_graph_store=property_graph_store,
+            vector_store=graph_vec_store,
+            llm=Settings.llm,
+            embed_model=Settings.embed_model,  # Explicitly set embedding model
+        )
 
-    milvus_manager = MilvusManager(
-        milvus_uri="./milvus_original.db",
-        collection_name=f"original_{user_id}"    
-    )
-    milvus_manager.create_index()
+        milvus_manager = MilvusManager(
+            milvus_uri="./milvus_original.db",
+            collection_name=f"original_{user_id}"    
+        )
+        milvus_manager.create_index()
 
-    # Vision model prompt
-    text_con_prompt = """
-        Please analyze the provided image and generate a detailed, plain-language description of its contents. 
-        Include key elements such as objects, people, colors, spatial relationships, background details, and any text visible in the image. 
-        The goal is to create a comprehensive textual representation that fully conveys the visual information to someone who cannot see the image.
-    """
+        # Vision model prompt
+        text_con_prompt = """
+            Please analyze the provided image and generate a detailed, plain-language description of its contents. 
+            Include key elements such as objects, people, colors, spatial relationships, background details, and any text visible in the image. 
+            The goal is to create a comprehensive textual representation that fully conveys the visual information to someone who cannot see the image.
+        """
 
-    # Process based on file type
-    match file_extension: 
-        case '.txt':
-            simple_doc = SimpleDirectoryReader(input_files=[file_location]).load_data()
-            for doc in simple_doc: 
-                graph_index.insert(doc)
+        # Process based on file type
+        match file_extension: 
+            case '.txt':
+                simple_doc = SimpleDirectoryReader(input_files=[file_location]).load_data()
+                for doc in simple_doc: 
+                    graph_index.insert(doc)
 
-        case '.jpg' | '.png' | '.jpeg':
-            txt_response = ollama.chat(
-                model='llama3.2-vision:90b',
-                messages=[{
-                    'role': 'user',
-                    'content': text_con_prompt,
-                    'images': [file_location]
-                }]
-            )
-            print("text message: ", txt_response.message.content)
-            txt_file_location = os.path.join(repo_upload_dir, os.path.splitext(filename)[0] + ".txt")
-
-            with open(txt_file_location, "w") as image_file:
-                image_file.write(str(txt_response.message.content))
-
-            simple_doc = SimpleDirectoryReader(input_files=[txt_file_location]).load_data()
-            
-            for doc in simple_doc: 
-                graph_index.insert(doc)
-
-        case '.pdf':
-            pdf_dir = os.path.join(repo_upload_dir, temp_dir_name)
-            os.makedirs(pdf_dir, exist_ok=True)
-            images = convert_from_path(file_location)
-
-            for i, image in enumerate(images):
-                image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
-                image.save(image_save_path, "PNG")
-
-            for i, image in enumerate(images):
-                print(f"page {i} is being proceed!")
-                image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
-                txt_save_path = os.path.join(pdf_dir, f"page_{i}.txt")
-
+            case '.jpg' | '.png' | '.jpeg':
                 txt_response = ollama.chat(
                     model='llama3.2-vision:90b',
                     messages=[{
                         'role': 'user',
                         'content': text_con_prompt,
-                        'images': [image_save_path]
+                        'images': [file_location]
                     }]
                 )
-                print("text message: ", txt_response.message.content)
-                with open(txt_save_path, "w") as m_file:
-                    m_file.write(txt_response.message.content)
+                print(f"Thread {threading.current_thread().name} - Image text response received")
+                txt_file_location = os.path.join(repo_upload_dir, os.path.splitext(filename)[0] + ".txt")
 
-                simple_doc = SimpleDirectoryReader(input_files=[txt_save_path]).load_data()
+                with open(txt_file_location, "w") as image_file:
+                    image_file.write(str(txt_response.message.content))
+
+                simple_doc = SimpleDirectoryReader(input_files=[txt_file_location]).load_data()
                 
                 for doc in simple_doc: 
                     graph_index.insert(doc)
 
-    print(f"Processing completed for: {file_location}")
-
-    match file_extension: 
-        case '.txt':
-            simple_doc = SimpleDirectoryReader(input_files=[file_location]).load_data()
-            for doc in simple_doc: 
-                graph_index.insert(doc)
-
-        case '.jpg' | '.png' | '.jpeg':
-            txt_response = ollama.chat(
-                model='llama3.2-vision:90b',
-                messages=[{
-                    'role': 'user',
-                    'content': text_con_prompt,
-                    'images': [file_location]
-                }]
-            )
-            print("text message: ", txt_response.message.content)
-            txt_file_location = os.path.join(repo_upload_dir, os.path.splitext(filename)[0] + ".txt")
-
-            with open(txt_file_location, "w") as image_file:
-                image_file.write(str(txt_response.message.content))
-
-            simple_doc = SimpleDirectoryReader(input_files=[txt_file_location]).load_data()
-            
-            for doc in simple_doc: 
-                graph_index.insert(doc)
-
-            # colbert_vecs = colpali_manager.process_images(image_paths=[file_location])
-
-            # image_paths = []
-            # image_paths.append(file_location)    
-
-            # images_data = [{
-            #     "colbert_vecs": colbert_vecs[i],
-            #     "filepath": image_paths[i]
-            # } for i in range(len(image_paths))]
-
-            # milvus_manager.insert_images_data(images_data)
-
-        case '.pdf':
-            pdf_dir = os.path.join(repo_upload_dir, temp_dir_name)
-            os.makedirs(pdf_dir, exist_ok=True)
-            pdf_path = file_location
-            images = convert_from_path(pdf_path)
-
-            for i, image in enumerate(images):
-                image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
-                image.save(image_save_path, "PNG")
-
-            for i, image in enumerate(images):
-                print(f"page {i} is being proceed!")
-                image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
-                txt_save_path = os.path.join(pdf_dir, f"page_{i}.txt")
-
-                txt_response = ollama.chat(
-                    model='llama3.2-vision:90b',
-                    messages=[{
-                        'role': 'user',
-                        'content': text_con_prompt,
-                        'images': [image_save_path]
-                    }]
-                )
-                print("text message: ", txt_response.message.content)
-                with open(txt_save_path, "w") as m_file:
-                    m_file.write(txt_response.message.content)
-
-                simple_doc = SimpleDirectoryReader(input_files=[txt_save_path]).load_data()
+            case '.pdf':
+                pdf_dir = os.path.join(repo_upload_dir, temp_dir_name)
+                os.makedirs(pdf_dir, exist_ok=True)
+                images = convert_from_path(file_location)
                 
-                for doc in simple_doc: 
-                    graph_index.insert(doc)
-            # colbert_vecs = colpali_manager.process_images(image_paths=image_paths)
+                print(f"Thread {threading.current_thread().name} - PDF with {len(images)} pages")
 
-            # images_data = [{
-            #     "colbert_vecs": colbert_vecs[i],
-            #     "filepath": image_paths[i]
-            # } for i in range(len(image_paths))]
+                # Save all images first
+                for i, image in enumerate(images):
+                    image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
+                    image.save(image_save_path, "PNG")
 
-            # milvus_manager.insert_images_data(images_data)
-    print(f"file location: {file_location}")
-    converted_file_location = file_location.replace("\\", "/")
-    print(f"converted_file_location: {converted_file_location}")
+                # Process each page
+                for i, _ in enumerate(images):
+                    image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
+                    txt_save_path = os.path.join(pdf_dir, f"page_{i}.txt")
+
+                    txt_response = ollama.chat(
+                        model='llama3.2-vision:90b',
+                        messages=[{
+                            'role': 'user',
+                            'content': text_con_prompt,
+                            'images': [image_save_path]
+                        }]
+                    )
+                    print(f"Thread {threading.current_thread().name} - Processing PDF page {i}")
+                    with open(txt_save_path, "w") as m_file:
+                        m_file.write(txt_response.message.content)
+
+                    simple_doc = SimpleDirectoryReader(input_files=[txt_save_path]).load_data()
+                    
+                    for doc in simple_doc: 
+                        graph_index.insert(doc)
+
+        print(f"Thread {threading.current_thread().name} - Processing completed for: {file_location}")
+        
+    except Exception as e:
+        print(f"Thread {threading.current_thread().name} - Error processing file {file_location}: {str(e)}")
+
 
 @router.post("/{repository_id}/upload/", response_model=FileResponse)
 async def upload_files_to_repository(
@@ -300,13 +234,20 @@ async def upload_files_to_repository(
         db.refresh(file_record)
         uploaded_files.append(FileMetadata.model_validate(file_record))
         
-        # Process file asynchronously
-        process_file_for_training(file_location, current_user.id, repository_id)
+        # Submit file processing task to thread pool
+        file_processor.submit(
+            process_file_for_training, 
+            file_location, 
+            current_user.id, 
+            repository_id
+        )
+        print(f"Submitted file {file.filename} for background processing")
 
     return FileResponse(
-        message=f"{len(uploaded_files)} file(s) uploaded successfully",
+        message=f"{len(uploaded_files)} file(s) uploaded successfully. Processing in background.",
         file_metadata=uploaded_files
     )
+
 
 @router.get("/{repository_id}/", response_model=FileList)
 def list_files_in_repository(
@@ -327,6 +268,7 @@ def list_files_in_repository(
         phone_number=current_user.phone_number,
         files=[FileMetadata.model_validate(file) for file in files]
     )
+
 
 @router.delete("/{repository_id}/{filename}", response_model=dict)
 async def delete_file(
@@ -354,29 +296,11 @@ async def delete_file(
 
     db.delete(file_record)
     db.commit()
-    # converted_file_location = file_record.storage_path.replace("\\", "/")
-    # documents = SimpleDirectoryReader(input_files=[converted_file_location]).load_data()
-    # vector_store = MilvusVectorStore(uri="./milvus_demo.db", dim=1536, overwrite=False, collection_name=f"space_{current_user.id}")
-    # ids = vector_store.client.query(
-    #     collection_name=f"user_{current_user.id}",
-    #     filter="id != ''",
-    #     output_fields=["file_path", "doc_id"]    
-    # )
-    # delete_node_ids = []
-
-    # for item in ids:
-    #     id = item.get('id')
-    #     file_path = item.get('file_path')
-    #     doc_id = item.get('doc_id')
-    #     print(f"{id} {file_path} {doc_id}")
-    #     if file_path == converted_file_location:
-    #         delete_node_ids.append(id)
-
-    # vector_store.delete_nodes(delete_node_ids)
     return {
         "message": "File deleted successfully",
         "filename": filename
     }
+
 
 @router.get("/{repository_id}/{filename}", response_model=FileMetadata)
 def get_file_metadata(
