@@ -254,13 +254,14 @@ async def upload_files_to_repository(
         db.refresh(file_record)
         uploaded_files.append(FileMetadata.model_validate(file_record))
         
-        # Submit file processing task to thread pool
-        file_processor.submit(
-            process_file_for_training, 
-            file_location, 
-            current_user.id, 
-            repository_id
-        )
+        # # Submit file processing task to thread pool
+        # file_processor.submit(
+        #     process_file_for_training, 
+        #     file_location, 
+        #     current_user.id, 
+        #     repository_id
+        # )
+        process_file_for_training(file_location=file_location, user_id=current_user.id, repository_id=repository_id)
         print(f"Submitted file {file.filename} for background processing")
 
     return FileResponse(
