@@ -25,6 +25,10 @@ from rag.vector_rag import VectorRAG
 from nebula3.Config import Config
 from nebula3.gclient.net import ConnectionPool
 from utils.milvus_manager import MilvusManager
+
+import nest_asyncio
+nest_asyncio.apply()
+
 # from utils.deepseekvlv2pipeline import DeepSeekpipeline
 
 import ollama
