@@ -1,4 +1,7 @@
 import os
+import nest_asyncio
+nest_asyncio.apply()
+
 import json
 from fastapi import WebSocket, HTTPException, Depends
 from sqlalchemy.orm import Session
@@ -25,9 +28,6 @@ from rag.vector_rag import VectorRAG
 from nebula3.Config import Config
 from nebula3.gclient.net import ConnectionPool
 from utils.milvus_manager import MilvusManager
-
-import nest_asyncio
-nest_asyncio.apply()
 
 # from utils.deepseekvlv2pipeline import DeepSeekpipeline
 
@@ -270,7 +270,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
             # Human: You are an AI assistant. You are able to find answers to the questions from the contextual passage snippets provided.
             # """.strip()
 
-            graph_response = graph_chat_engine.chat(message=user_input)
+            graph_response = graph_chat_engine.achat(message=user_input)
             print("Response from graph_store:", graph_response)
             
             # Build the user prompt by combining vector_answer and graph_response into the <context> block,
