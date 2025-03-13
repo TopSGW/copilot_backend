@@ -159,7 +159,9 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                 simple_doc = SimpleDirectoryReader(input_files=[txt_file_location]).load_data()
                 
                 for doc in simple_doc: 
+                    print("meta data inserting...........")
                     doc.metadata = source_data[0].metadata
+                    print("meta data printing....")
                     graph_index.insert(doc)
 
             case '.pdf':
