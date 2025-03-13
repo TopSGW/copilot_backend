@@ -123,6 +123,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
             The goal is to create a comprehensive textual representation that fully conveys the visual information to someone who cannot see the image.
         """
 
+        source_data = SimpleDirectoryReader(input_files=[file_location]).load_data()
         # Process based on file type
         match file_extension: 
             case '.txt':
@@ -148,25 +149,32 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                 simple_doc = SimpleDirectoryReader(input_files=[txt_file_location]).load_data()
                 
                 for doc in simple_doc: 
+                    doc.metadata = source_data[0].metadata
                     graph_index.insert(doc)
 
             case '.pdf':
+                # Create a subdirectory to save images (using PDF base name)
                 pdf_dir = os.path.join(repo_upload_dir, temp_dir_name)
                 os.makedirs(pdf_dir, exist_ok=True)
                 images = convert_from_path(file_location)
                 
                 print(f"Thread {threading.current_thread().name} - PDF with {len(images)} pages")
 
-                # Save all images first
+                # Save all images in the subdirectory
                 for i, image in enumerate(images):
                     image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
                     image.save(image_save_path, "PNG")
 
-                # Process each page
+                # Define the combined text file with the same base name as the PDF file
+                pdf_txt_file = os.path.join(repo_upload_dir, f"{temp_dir_name}.txt")
+                # Clear any existing content (or create new)
+                with open(pdf_txt_file, "w") as f:
+                    f.write("")
+
+                # Process each page and append its response to the combined text file
                 for i, _ in enumerate(images):
                     image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
-                    txt_save_path = os.path.join(pdf_dir, f"page_{i}.txt")
-
+                    
                     txt_response = ollama.chat(
                         model='llama3.2-vision:90b',
                         messages=[{
@@ -176,13 +184,17 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                         }]
                     )
                     print(f"Thread {threading.current_thread().name} - Processing PDF page {i}")
-                    with open(txt_save_path, "w") as m_file:
-                        m_file.write(txt_response.message.content)
-
-                    simple_doc = SimpleDirectoryReader(input_files=[txt_save_path]).load_data()
                     
-                    for doc in simple_doc: 
-                        graph_index.insert(doc)
+                    with open(pdf_txt_file, "a") as f:
+                        f.write(f"--- Response for page {i} ---\n")
+                        f.write(txt_response.message.content)
+                        f.write("\n\n")
+                
+                # Load the combined text file for indexing
+                simple_doc = SimpleDirectoryReader(input_files=[pdf_txt_file]).load_data()
+                for doc in simple_doc: 
+                    doc.metadata = source_data[0].metadata
+                    graph_index.insert(doc)
 
         print(f"Thread {threading.current_thread().name} - Processing completed for: {file_location}")
         
