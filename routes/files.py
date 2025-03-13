@@ -132,6 +132,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
         """
 
         source_data = SimpleDirectoryReader(input_files=[file_location]).load_data()
+        print(source_data[0].metadata)
         # Process based on file type
         match file_extension: 
             case '.txt':
@@ -148,7 +149,8 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                         'images': [file_location]
                     }]
                 )
-                print(f"Thread {threading.current_thread().name} - Image text response received")
+                print("text response:", txt_response.message.content)
+                # print(f"Thread {threading.current_thread().name} - Image text response received")
                 txt_file_location = os.path.join(repo_upload_dir, os.path.splitext(filename)[0] + ".txt")
 
                 with open(txt_file_location, "w") as image_file:
