@@ -71,7 +71,7 @@ async def main():
     messages = [{"role": "user", "content": "Hello, how are you?"}]
     
     try:
-        response = await handler.agenerate_chat_completion(messages, model="llama3.3:70b")
+        response = await handler.agenerate_chat_completion(messages, model="llama3.2-vision:90b")
         print("Chat Completion:", response)
     except Exception as e:
         print("Error:", e)
