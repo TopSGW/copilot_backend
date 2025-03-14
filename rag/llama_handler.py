@@ -10,7 +10,7 @@ class LlamaHandler:
         self.base_url = base_url
         self.system_prompt = system_prompt
 
-    async def agenerate_chat_completion(self, messages, model="llama2"):
+    async def agenerate_chat_completion(self, messages, model="llama3.3:70b"):
         # If a system prompt is provided, prepend it as a system message.
         if self.system_prompt:
             messages = [{"role": "system", "content": self.system_prompt}] + messages
