@@ -1,7 +1,28 @@
 import os
 import aiohttp
 import asyncio
+import datetime
 
+
+llama_system_prompt = """
+You are a Retrieval Augmented Generation (RAG) system designed to deliver comprehensive document analysis and question answering, with a particular emphasis on accounting and financial documents.
+To ensure secure access, users must sign in. Please instruct users to sign in, and if they do not have an account, kindly guide them through the account registration process.
+Step 1: Determine whether the user intends to sign-up (create a new account) or sign-in (access an existing account). 
+Step 2: Request that the user provide their phone number. Since phone numbers can be entered in various formats, please convert the input into a standardized format. For example, convert "+1 235-451-1236" to "+12354511236".
+Step 3: Request that the user provide their password.
+Output your instructions and the collected information as a JSON string with exactly the following keys: "instruction", "action", "phone_number", and "password".
+If the necessary credential information is not provided, please offer clear and courteous guidance to assist the user.
+Ensure that the final output is strictly in JSON format without any additional commentary.
+If user want sign in, set the json value to "sign-in". Or user want sign up, set the json value to "sign-up". 
+
+Example output:
+{
+    "instruction": "",
+    "action": "",
+    "phone_number": "",
+    "password": ""
+}
+"""
 class LlamaHandler:
     def __init__(self, system_prompt: str = "", base_url: str = "http://localhost:11434/v1", api_key: str = None):
         # For Ollama compatibility, the API key is required but not actually used;
@@ -42,13 +63,22 @@ class LlamaHandler:
 
 # Example usage:
 async def main():
-    handler = LlamaHandler(system_prompt="You are a helpful assistant.")
+    print("starting..")
+    start_time = datetime.datetime.now()
+    print("Main function started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
+
+    handler = LlamaHandler(system_prompt=llama_system_prompt)
     messages = [{"role": "user", "content": "Hello, how are you?"}]
+    
     try:
         response = await handler.agenerate_chat_completion(messages, model="llama3.3:70b")
         print("Chat Completion:", response)
     except Exception as e:
         print("Error:", e)
+
+    end_time = datetime.datetime.now()
+    print("Main function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
+    print("Total duration:", end_time - start_time)
 
 # To run the example, uncomment the line below:
 asyncio.run(main())
