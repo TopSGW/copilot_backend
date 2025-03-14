@@ -45,7 +45,7 @@ async def main():
     handler = LlamaHandler(system_prompt="You are a helpful assistant.")
     messages = [{"role": "user", "content": "Hello, how are you?"}]
     try:
-        response = await handler.agenerate_chat_completion(messages, model="llama2")
+        response = await handler.agenerate_chat_completion(messages, model="llama3.3:70b")
         print("Chat Completion:", response)
     except Exception as e:
         print("Error:", e)
