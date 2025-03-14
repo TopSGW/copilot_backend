@@ -51,4 +51,4 @@ async def main():
         print("Error:", e)
 
 # To run the example, uncomment the line below:
-# asyncio.run(main())
+asyncio.run(main())
