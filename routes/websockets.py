@@ -260,8 +260,8 @@ async def websocket_chat(websocket: WebSocket, token: str):
 
     add_data_agent = ReActAgent(
         name="add_data_agent",
-        description="Add data to the system",
-        system_prompt=f"Use your tool to add data to the RAG system. When it comes to the file_path, use {note_path} always.",
+        description="",
+        system_prompt = f"Only invoke your tool to save or append data based on the user's request. The otherwise, don't use your tool. If the action is 'save', include the entire user query as the data. For any file operation, always use the file_path specified by {note_path}.",
         tools=[append_to_file],
         llm=Settings.llm,
     )
