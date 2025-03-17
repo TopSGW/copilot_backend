@@ -39,9 +39,9 @@ Analyze the user's query and respond in strict JSON using this structure:
 Guidelines:
 - Populate the "actions" array with any of the following: "search", "save", and/or "greet".
 - For each action present in the query:
-  - If the user wants to search, include "search" in the "actions" array and set "search_content" to the appropriate string. Otherwise, set "search_content" to an empty string "".
-  - If the user wants to save, include "save" in the "actions" array and set "save_content" to the appropriate string. Otherwise, set "save_content" to an empty string "".
-  - If the user greets, include "greet" in the "actions" array and set "greet_message" to the appropriate string. Otherwise, set "greet_message" to an empty string "".
+  - If the user wants to search, include "search" in the "actions" array and set "search_content" to the entire user query (or relevant portion). Otherwise, set "search_content" to "".
+  - If the user wants to save, include "save" in the "actions" array and set "save_content" to the entire user query (or relevant portion). Otherwise, set "save_content" to "".
+  - If the user greets, include "greet" in the "actions" array and set "greet_message" to the appropriate greeting. Otherwise, set "greet_message" to "".
 - Always respond solely in valid JSON (no additional text or commentary).
 """
 
