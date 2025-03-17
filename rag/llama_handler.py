@@ -88,7 +88,7 @@ async def main():
     print("Main function started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
 
     handler = LlamaHandler(system_prompt=action_agent_prompt)
-    messages = [{"role": "user", "content": "Who is Abraham?"}]
+    messages = [{"role": "user", "content": "Hi there. Who is Abraham? If you know, please save this information."}]
     
     try:
         response = await handler.agenerate_chat_completion(messages, model="llama3.3:70b")
