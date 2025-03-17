@@ -259,7 +259,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     create_text_file(note_path)
 
     add_data_agent = ReActAgent(
-        name="add_data",
+        name="add_data_agent",
         description="Add data to the system",
         system_prompt=f"Use your tool to add data to the RAG system. When it comes to the file_path, use {note_path} always.",
         tools=[append_to_file],
@@ -276,7 +276,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
 
     agent = AgentWorkflow(
         agents=[add_data_agent, query_agent],
-        root_agent=add_data_agent
+        root_agent="add_data_agent"
     )
     while websocket_open:
         try:
