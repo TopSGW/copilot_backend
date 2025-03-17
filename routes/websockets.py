@@ -15,6 +15,12 @@ from llama_index.core import PropertyGraphIndex, Settings
 from llama_index.llms.ollama import Ollama
 from llama_index.graph_stores.nebula import NebulaPropertyGraphStore
 from llama_index.core.llms import ChatMessage, MessageRole, TextBlock, ImageBlock
+from llama_index.core.tools import QueryEngineTool
+from llama_index.core.agent.workflow import (
+    AgentWorkflow,
+    FunctionAgent,
+    ReActAgent,
+)
 
 import prompts
 
@@ -226,6 +232,14 @@ async def websocket_chat(websocket: WebSocket, token: str):
         llm=Settings.llm,
     )
 
+    query_engine = graph_index.as_query_engine(llm=Settings.llm, similarity_top_k=5)
+
+    query_engine_tool = QueryEngineTool.from_defaults(
+        query_engine=query_engine,
+        name="name",
+        description="a specific description",
+        return_direct=False
+    )
     graph_chat_engine = graph_index.as_chat_engine(
         chat_mode='context',
         llm=Settings.llm,
@@ -243,6 +257,27 @@ async def websocket_chat(websocket: WebSocket, token: str):
 
     note_path = os.path.join(repo_upload_dir, "note.txt")
     create_text_file(note_path)
+
+    add_data_agent = ReActAgent(
+        name="add_data",
+        description="Add data to the system",
+        system_prompt=f"Use your tool to add data to the RAG system. When it comes to the file_path, use {note_path} always.",
+        tools=[append_to_file],
+        llm=Settings.llm,
+    )
+
+    query_agent = ReActAgent(
+        name="info_lookup",
+        description="Looks up information",
+        system_prompt="Use your tool to query a RAG system to answer information",
+        tools=[query_engine_tool],
+        llm=Settings.llm,
+    )
+
+    agent = AgentWorkflow(
+        agents=[add_data_agent, query_agent],
+        root_agent=add_data_agent
+    )
     while websocket_open:
         try:
             data = await websocket.receive_text()
@@ -284,26 +319,10 @@ async def websocket_chat(websocket: WebSocket, token: str):
             # SYSTEM_PROMPT = """
             # Human: You are an AI assistant. You are able to find answers to the questions from the contextual passage snippets provided.
             # """.strip()
-            determine_agent = LlamaHandler(system_prompt=action_agent_prompt)
-            messages = [{"role": "user", "content": user_input}]
-            determine_output = await determine_agent.agenerate_chat_completion(messages=messages, model="llama:3.3:70b")
-            determine_output = json.loads(determine_output)
-            print(f"actions >>> {determine_output.get("actions")}")
-            search_content = determine_output.get("search_content")
-            print(f"search_content >>>> {search_content}")
-            save_content = determine_output.get("save_content")
-            print(f"save content >>>>> {save_content}")
-            greet_message = determine_output.get("greet_message")
-            print(f"greet message >>>> {greet_message}")
 
-            
-            if search_content != "":
-                final_answer = await graph_chat_engine.achat(message=user_input)
-                print("Response from graph_store:", final_answer)
-            
-            if save_content !="":
-                append_to_file(file_path=note_path, content=user_input)
-                final_answer = "The information is successfully saved!"
+            response = await agent.run(user_msg=user_input)
+            print(response)
+            final_answer = str(response)
             
             # Build the user prompt by combining vector_answer and graph_response into the <context> block,
             # and including the user_input within the <question> block.
@@ -326,7 +345,6 @@ async def websocket_chat(websocket: WebSocket, token: str):
 
             # final_answer = Settings.llm.chat(messages=messages)
             print(final_answer)
-            final_answer = greet_message + "\n" + final_answer
             if str(final_answer) == 'Empty Response':
                 await websocket.send_json({"message": "There is no provided documents. Please upload documents."})
             else:    
