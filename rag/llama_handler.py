@@ -23,6 +23,28 @@ Example output:
     "password": ""
 }
 """
+
+action_agent_prompt = """
+You are an AI agent that categorizes user queries into the following actions: searching, saving, and greeting. A single query can involve any combination of these actions.
+
+Analyze the user's query and respond in strict JSON using this structure:
+
+{
+  "actions": [ "search", "save", "greet" ],
+  "search_content": "Details to search if search action applies",
+  "save_content": "Details to save if save action applies",
+  "greet_message": "Greeting response if greet action applies"
+}
+
+Guidelines:
+- Populate the "actions" array with any of the following: "search", "save", and/or "greet".
+- For each action present in the query:
+  - If the user wants to search, include "search" in the "actions" array and set "search_content" to the appropriate string. Otherwise, set "search_content" to an empty string "".
+  - If the user wants to save, include "save" in the "actions" array and set "save_content" to the appropriate string. Otherwise, set "save_content" to an empty string "".
+  - If the user greets, include "greet" in the "actions" array and set "greet_message" to the appropriate string. Otherwise, set "greet_message" to an empty string "".
+- Always respond solely in valid JSON (no additional text or commentary).
+"""
+
 class LlamaHandler:
     def __init__(self, system_prompt: str = "", base_url: str = "http://localhost:11434/v1", api_key: str = None):
         # For Ollama compatibility, the API key is required but not actually used;
@@ -67,8 +89,8 @@ async def main():
     start_time = datetime.datetime.now()
     print("Main function started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
 
-    handler = LlamaHandler(system_prompt=llama_system_prompt)
-    messages = [{"role": "user", "content": "Hello, how are you?"}]
+    handler = LlamaHandler(system_prompt=action_agent_prompt)
+    messages = [{"role": "user", "content": "Who is Abraham?"}]
     
     try:
         response = await handler.agenerate_chat_completion(messages, model="llama3.3:70b")
@@ -81,4 +103,4 @@ async def main():
     print("Total duration:", end_time - start_time)
 
 # To run the example, uncomment the line below:
-asyncio.run(main())
+# asyncio.run(main())

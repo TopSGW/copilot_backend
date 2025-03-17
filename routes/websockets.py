@@ -18,19 +18,19 @@ from llama_index.core.llms import ChatMessage, MessageRole, TextBlock, ImageBloc
 
 import prompts
 
-
 from databases.database import get_db, User
 from auth import get_current_user, create_access_token, authenticate_user, get_password_hash, get_user_by_phone
 from config.config import ACCESS_TOKEN_EXPIRE_HOURS
 from rag.rag import run_auth_agent, authenticate_agent
-from rag.vector_rag import VectorRAG
+from rag.llama_handler import LlamaHandler
+from rag.llama_handler import llama_system_prompt
 
 from nebula3.Config import Config
 from nebula3.gclient.net import ConnectionPool
-# from utils.milvus_manager import MilvusManager
 
-# from utils.deepseekvlv2pipeline import DeepSeekpipeline
-
+from config.config import UPLOAD_DIR
+from routes.files import create_text_file, append_to_file
+from rag.llama_handler import action_agent_prompt
 import ollama
 
 Settings.llm = Ollama(
@@ -40,8 +40,7 @@ Settings.llm = Ollama(
     base_url="http://localhost:11434"
 )
 
-# colpali_manager = ColpaliManager()
-
+auth_agent = LlamaHandler(system_prompt=llama_system_prompt)
 
 def set_graph_space(space_name: str):
     config = Config()
@@ -52,20 +51,16 @@ def set_graph_space(space_name: str):
         print("Failed to initialize the connection pool!")
         return
 
-    # Create a session with the Nebula Graph server
     session = connection_pool.get_session('root', 'nebula')
     
     try:
-        # Define your nGQL command
         query = f'CREATE SPACE IF NOT EXISTS {space_name}(vid_type=FIXED_STRING(256));'
-        # Execute the command
         result = session.execute(query)
         print("Query executed successfully!")
         print(result)
     except Exception as e:
         print("Error executing query:", e)
     finally:
-        # Always release the session and close the connection pool
         session.release()
         connection_pool.close()
 
@@ -79,15 +74,30 @@ async def websocket_auth_dialogue(websocket: WebSocket):
             try:
                 data = await websocket.receive_text()
                 print("Received auth data:", data)
+                auth_input_data = json.loads(data)
+            except json.JSONDecodeError:
+                print("Error decoding JSON data")
+                await websocket.send_json({
+                    "message": "Invalid JSON format",
+                    "status": False
+                })
+                continue
             except Exception as e:
                 print("Auth receive error or disconnect:", e)
                 websocket_open = False
                 break
 
-            auth_input_data = json.loads(data)
-            user_input = auth_input_data.get("user_input", "")
-            auth_data = await run_auth_agent(user_input)
+            messages = auth_input_data.get("user_input", [])
+            
+            if not isinstance(messages, list):
+                await websocket.send_json({
+                    "message": "Invalid input format. Expected a list of messages.",
+                    "status": False
+                })
+                continue
+            auth_data = await auth_agent.agenerate_chat_completion(messages, model="llama3.3:70b")
             print("Auth agent returned:", auth_data)
+            auth_data = json.loads(auth_data)
             action = auth_data.get("action")
             phone = auth_data.get("user_number") or auth_data.get("phone_number")
             password = auth_data.get("password")
@@ -228,6 +238,11 @@ async def websocket_chat(websocket: WebSocket, token: str):
     #     collection_name=f"original_{user.id}"    
     # )
     # milvus_manager.create_index()
+    repo_upload_dir = os.path.join(UPLOAD_DIR, user.phone_number, "note")
+    os.makedirs(repo_upload_dir, exist_ok=True)
+
+    note_path = os.path.join(repo_upload_dir, "note.txt")
+    create_text_file(note_path)
     while websocket_open:
         try:
             data = await websocket.receive_text()
@@ -269,9 +284,26 @@ async def websocket_chat(websocket: WebSocket, token: str):
             # SYSTEM_PROMPT = """
             # Human: You are an AI assistant. You are able to find answers to the questions from the contextual passage snippets provided.
             # """.strip()
+            determine_agent = LlamaHandler(system_prompt=action_agent_prompt)
+            messages = [{"role": "user", "content": user_input}]
+            determine_output = await determine_agent.agenerate_chat_completion(messages=messages, model="llama:3.3:70b")
+            determine_output = json.loads(determine_output)
+            print(f"actions >>> {determine_output.get("actions")}")
+            search_content = determine_output.get("search_content")
+            print(f"search_content >>>> {search_content}")
+            save_content = determine_output.get("save_content")
+            print(f"save content >>>>> {save_content}")
+            greet_message = determine_output.get("greet_message")
+            print(f"greet message >>>> {greet_message}")
 
-            graph_response = await graph_chat_engine.achat(message=user_input)
-            print("Response from graph_store:", graph_response)
+            
+            if search_content != "":
+                final_answer = await graph_chat_engine.achat(message=user_input)
+                print("Response from graph_store:", final_answer)
+            
+            if save_content !="":
+                append_to_file(file_path=note_path, content=user_input)
+                final_answer = "The information is successfully saved!"
             
             # Build the user prompt by combining vector_answer and graph_response into the <context> block,
             # and including the user_input within the <question> block.
@@ -293,13 +325,15 @@ async def websocket_chat(websocket: WebSocket, token: str):
             # ]
 
             # final_answer = Settings.llm.chat(messages=messages)
-            final_answer= str(graph_response)
             print(final_answer)
-
+            final_answer = greet_message + "\n" + final_answer
             if str(final_answer) == 'Empty Response':
                 await websocket.send_json({"message": "There is no provided documents. Please upload documents."})
             else:    
                 await websocket.send_json({"message": final_answer})
+        except json.JSONDecodeError:
+            print("Error decoding JSON data")
+            await websocket.send_json({"message": "Invalid JSON format"})
         except Exception as e:
             print("Error processing message:", e)
             await websocket.send_json({"message": "An error occurred processing your request."})

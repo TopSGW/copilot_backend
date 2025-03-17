@@ -71,6 +71,28 @@ class FileList(BaseModel):
     phone_number: str
     files: List[FileMetadata]
 
+def create_text_file(file_path: str, initial_content: str = ""):
+    """
+    Creates a text file at the given file_path if it does not already exist.
+    Optionally writes an initial content to the file.
+    """
+    if os.path.exists(file_path):
+        print(f"File already exists at {file_path}.")
+    else:
+        with open(file_path, 'w', encoding='utf-8') as file:
+            file.write(initial_content)
+        print(f"File created successfully at: {file_path}")
+
+def append_to_file(file_path: str, content: str):
+    """
+    Appends the provided content to the file at file_path.
+    If the file does not exist, it will be created automatically.
+    """
+    with open(file_path, 'a', encoding='utf-8') as file:
+        file.write(content + "\n")
+    print(f"Content appended to file at: {file_path}")
+
+
 def process_file_for_training(file_location: str, user_id: int, repository_id: int):
     """
     Process uploaded files for training and indexing based on file type.
