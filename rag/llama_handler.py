@@ -103,4 +103,4 @@ async def main():
     print("Total duration:", end_time - start_time)
 
 # To run the example, uncomment the line below:
-# asyncio.run(main())
+asyncio.run(main())
