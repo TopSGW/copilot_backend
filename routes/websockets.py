@@ -262,8 +262,15 @@ async def websocket_chat(websocket: WebSocket, token: str):
     add_data_agent = ReActAgent(
         name="add_data_agent",
         description="",
-        system_prompt = f"Only invoke your tool to save or append data based on the user's request. The otherwise, don't use your tool. If the action is 'save', include the entire user query as the data. For any file operation, always use the file_path specified by {note_path}.",
-        tools=[append_to_file],
+        system_prompt = (
+            f"Use your tool only when the user requests to save or append data. "
+            f"For operations that involve saving data: "
+            f"- If the user's query simply asks to save data, use the entire query as the data. "
+            f"- If the user's query requires retrieving information before saving (e.g., 'Do you know Abraham? If yes, please save the info.'), "
+            f"first use the query_engine_tool to retrieve the required information, then use append_to_file to save it. "
+            f"Always use the file_path specified by {note_path} for file operations."
+        ),
+        tools=[append_to_file, query_engine_tool],
         llm=Settings.llm,
     )
 
