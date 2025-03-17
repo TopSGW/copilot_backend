@@ -38,6 +38,7 @@ from config.config import UPLOAD_DIR
 from routes.files import create_text_file, append_to_file
 from rag.llama_handler import action_agent_prompt
 import ollama
+import datetime
 
 Settings.llm = Ollama(
     model="llama3.3:70b",
@@ -288,6 +289,8 @@ async def websocket_chat(websocket: WebSocket, token: str):
             break
 
         try:
+            start_time = datetime.datetime.now()
+            print("Main function started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
             auth_input_data = json.loads(data)
             user_input = auth_input_data.get("user_input", "")
             # query_vec = colpali_manager.process_text([user_input])[0]
@@ -324,6 +327,10 @@ async def websocket_chat(websocket: WebSocket, token: str):
             print(response)
             final_answer = str(response)
             
+
+            end_time = datetime.datetime.now()
+            print("Main function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
+            print("Total duration:", end_time - start_time)
             # Build the user prompt by combining vector_answer and graph_response into the <context> block,
             # and including the user_input within the <question> block.
             # USER_PROMPT = f"""
