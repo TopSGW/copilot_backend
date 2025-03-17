@@ -241,6 +241,8 @@ async def websocket_chat(websocket: WebSocket, token: str):
         description="a specific description",
         return_direct=False
     )
+    start_time = datetime.datetime.now()
+    print("graph chat engine started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
     graph_chat_engine = graph_index.as_chat_engine(
         chat_mode='context',
         llm=Settings.llm,
@@ -248,6 +250,13 @@ async def websocket_chat(websocket: WebSocket, token: str):
         memory=memory
     )
 
+    graph_response = await graph_chat_engine.achat(message="Do you know Susan Wager?")   
+
+    print("graph response  ", graph_response.response)
+
+    end_time = datetime.datetime.now()
+    print("Graph function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
+    print("Total duration:", end_time - start_time)
     # milvus_manager = MilvusManager(
     #     milvus_uri="./milvus_original.db",
     #     collection_name=f"original_{user.id}"    
@@ -263,7 +272,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
         name="add_data_agent",
         description="",
         system_prompt = (
-            f"Use your tool only when the user requests to save or append data. "
+            f"Use your tools only when the user requests to save or append data. "
             f"For operations that involve saving data: "
             f"- If the user's query simply asks to save data, use the entire query as the data. "
             f"- If the user's query requires retrieving information before saving (e.g., 'Do you know Abraham? If yes, please save the info.'), "
