@@ -233,7 +233,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
         llm=Settings.llm,
     )
 
-    query_engine = graph_index.as_query_engine(llm=Settings.llm, similarity_top_k=5)
+    query_engine = graph_index.as_query_engine(llm=Settings.llm)
 
     query_engine_tool = QueryEngineTool.from_defaults(
         query_engine=query_engine,
