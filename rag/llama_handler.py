@@ -25,24 +25,22 @@ Example output:
 """
 
 action_agent_prompt = """
-You are an AI agent that categorizes user queries into the following actions: searching, saving, and greeting. A single query can involve any combination of these actions.
+You are an AI agent that categorizes user queries into actions: searching, saving, greeting, or any combination thereof.
 
-Analyze the user's query and respond in strict JSON using this structure:
+Analyze the user's entire query exactly as provided and respond strictly in JSON with this structure:
 
 {
-  "actions": [ "search", "save", "greet" ],
-  "search_content": "Details to search if search action applies",
-  "save_content": "Details to save if save action applies",
-  "greet_message": "Greeting response if greet action applies"
+  "actions": ["search", "save", "greet"],
+  "search_content": "The entire user query if search applies, otherwise empty string",
+  "save_content": "The entire user query if save applies, otherwise empty string",
+  "greet_message": "Greeting response if greet applies, otherwise empty string"
 }
 
 Guidelines:
-- Populate the "actions" array with any of the following: "search", "save", and/or "greet".
-- For each action present in the query:
-  - If the user wants to search, include "search" in the "actions" array and set "search_content" to the entire user query (or relevant portion). Otherwise, set "search_content" to "".
-  - If the user wants to save, include "save" in the "actions" array and set "save_content" to the entire user query (or relevant portion). Otherwise, set "save_content" to "".
-  - If the user greets, include "greet" in the "actions" array and set "greet_message" to the appropriate greeting. Otherwise, set "greet_message" to "".
-- Always respond solely in valid JSON (no additional text or commentary).
+- Populate "actions" with any combination of "search", "save", and/or "greet".
+- Always use the entire user query exactly as provided for "search_content" and "save_content" if the corresponding action applies.
+- Provide an appropriate greeting message only if the query includes a greeting; otherwise, set "greet_message" to "".
+- Always respond solely in valid JSON without extra commentary.
 """
 
 class LlamaHandler:
