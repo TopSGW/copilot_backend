@@ -270,6 +270,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
             
             docs = SimpleDirectoryReader(input_files=[file_path]).load_data()
 
+            print("inserting......")
             for doc in docs:
                 graph_index.insert(doc)
         except Exception as e:
