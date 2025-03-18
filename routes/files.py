@@ -27,6 +27,14 @@ import ollama
 
 file_processor = ThreadPoolExecutor(max_workers=25)
 
+def run_async(coro):
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop.run_until_complete(coro)
+
 # Configure LLM and embedding models
 Settings.llm = Ollama(
     model="llama3.3:70b",
