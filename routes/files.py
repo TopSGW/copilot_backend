@@ -154,9 +154,12 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
         # Process based on file type
         match file_extension: 
             case '.txt':
+                print("starting text file processing............")
                 simple_doc = SimpleDirectoryReader(input_files=[file_location]).load_data()
                 for doc in simple_doc:
                     graph_index.insert(doc)
+                
+                print(f"{file_location} Text file processed successfully")
 
             case '.jpg' | '.png' | '.jpeg':
                 txt_response = ollama.chat(
