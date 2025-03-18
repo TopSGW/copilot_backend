@@ -270,7 +270,7 @@ async def upload_files_to_repository(
         uploaded_files.append(FileMetadata.model_validate(file_record))
         
         # # Submit file processing task to thread pool
-        background_tasks.submit(
+        background_tasks.add_task(
             process_file_for_training, 
             file_location, 
             current_user.id, 
