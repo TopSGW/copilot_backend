@@ -1,4 +1,3 @@
-import nest_asyncio
 from fastapi import FastAPI, WebSocket, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 import logging
@@ -9,9 +8,6 @@ from auth import get_current_user, UserOut
 from routes.websockets import websocket_auth_dialogue, websocket_chat
 from routes.repositories import router as repositories_router
 from routes.files import router as files_router
-
-nest_asyncio.apply()
-
 # Configure logging
 # logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
