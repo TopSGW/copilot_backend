@@ -1,8 +1,5 @@
 import os
 import aiohttp
-import asyncio
-import datetime
-
 
 llama_system_prompt = """
 You are a Retrieval Augmented Generation (RAG) system designed to deliver comprehensive document analysis and question answering, with a particular emphasis on accounting and financial documents.

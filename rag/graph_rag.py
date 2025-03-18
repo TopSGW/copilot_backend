@@ -10,9 +10,9 @@ from llama_index.llms.ollama import Ollama
 from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.core.vector_stores.simple import SimpleVectorStore
 from llama_index.core.memory import ChatMemoryBuffer
-import nest_asyncio
+# import nest_asyncio
 
-nest_asyncio.apply()
+# nest_asyncio.apply()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 class GraphRAG:
