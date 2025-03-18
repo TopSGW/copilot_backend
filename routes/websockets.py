@@ -271,13 +271,20 @@ async def websocket_chat(websocket: WebSocket, token: str):
 
     add_data_agent = ReActAgent(
         name="add_data_agent",
-        description="",
-        system_prompt = (
-            f"Use your tools only when the user requests to save or append data. "
-            f"For operations that involve saving data: "
-            f"- If the user's query simply asks to save data, use the entire query as the data. "
-            f"- If the user's query requires retrieving information before saving (e.g., 'Do you know Abraham? If yes, please save the info.'), "
-            f"first use the query_engine_tool to retrieve the required information, then use append_to_file to save it. "
+        description="Agent responsible for saving data upon user request.",
+        system_prompt=(
+            f"Your primary role is to add (save/append) information only when explicitly requested by the user. "
+            f"Otherwise, do not use any tools. "
+            f"\n\n"
+            f"For saving operations:\n"
+            f"- If the user directly asks to save some content (e.g., 'Please save the following...'), "
+            f"use the entire query as the data to be saved.\n"
+            f"- If the user first wants to retrieve or check information before saving (e.g., 'Do you know Larry? If yes, please save it'), "
+            f"first use the 'query_engine_tool' to gather the information, then use 'append_save_to_file' to save it.\n"
+            f"\n"
+            f"For all other queries (e.g., general questions that do not involve saving data), "
+            f"do not use any tools.\n"
+            f"\n"
             f"Always use the file_path specified by {note_path} for file operations."
         ),
         tools=[append_save_to_file, query_engine_tool],
