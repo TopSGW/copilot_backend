@@ -241,22 +241,12 @@ async def websocket_chat(websocket: WebSocket, token: str):
         description="a specific description",
         return_direct=False
     )
-    start_time = datetime.datetime.now()
-    print("graph chat engine started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
     graph_chat_engine = graph_index.as_chat_engine(
         chat_mode='context',
         llm=Settings.llm,
         system_prompt=prompts.RAG_SYSTEM_PROMPT,
         memory=memory
     )
-
-    graph_response = await graph_chat_engine.achat(message="Do you know Susan Wager?")   
-
-    print("graph response  ", graph_response.response)
-
-    end_time = datetime.datetime.now()
-    print("Graph function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
-    print("Total duration:", end_time - start_time)
     # milvus_manager = MilvusManager(
     #     milvus_uri="./milvus_original.db",
     #     collection_name=f"original_{user.id}"    
