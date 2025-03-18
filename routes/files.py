@@ -221,7 +221,8 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                 for doc in simple_doc: 
                     doc.metadata = source_data[0].metadata
                     graph_index.insert(doc)
-        
+        print(f"Thread {threading.current_thread().name} - Processing completed for: {file_location}")
+
     except Exception as e:
         print(f"Error processing file {file_location}: {str(e)}")
 
