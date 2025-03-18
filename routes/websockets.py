@@ -1,7 +1,4 @@
 import os
-import nest_asyncio
-nest_asyncio.apply()
-
 import json
 from fastapi import WebSocket, HTTPException, Depends
 from sqlalchemy.orm import Session
