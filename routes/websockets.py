@@ -264,14 +264,19 @@ async def websocket_chat(websocket: WebSocket, token: str):
         If the file does not exist, it will be created automatically.
         """
         print("note text training start......")
-        with open(file_path, 'a', encoding='utf-8') as file:
-            file.write(content + "\n")
-        
-        docs = SimpleDirectoryReader(input_files=[file_path]).load_data()
+        try:
+            with open(file_path, 'a', encoding='utf-8') as file:
+                file.write(content + "\n")
+            
+            docs = SimpleDirectoryReader(input_files=[file_path]).load_data()
 
-        for doc in docs:
-            graph_index.insert(doc)
-        print(f"Content appended to file at: {file_path}")
+            for doc in docs:
+                graph_index.insert(doc)
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            # Optionally, you could log this error to a file or re-raise it
+        else:
+            print(f"Content appended to file at: {file_path}")
 
     add_data_agent = ReActAgent(
         name="add_data_agent",
