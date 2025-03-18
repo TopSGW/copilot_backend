@@ -4,7 +4,8 @@
 cd /workspace/copilot_backend
 
 # Run the FastAPI app with nohup
-nohup python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 > backend.log 2>&1 &
+nohup hypercorn main:app --bind 0.0.0.0:8000 > hypercorn.log 2>&1 &
+echo $! > hypercorn.pid
 
 echo $! > backend.pid
 
