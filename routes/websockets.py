@@ -304,7 +304,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
 
     agent = AgentWorkflow(
         agents=[add_data_agent, query_agent],
-        root_agent="add_data_agent"
+        root_agent="info_lookup"
     )
     while websocket_open:
         try:
