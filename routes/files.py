@@ -1,4 +1,8 @@
 import os
+import asyncio
+import threading
+from concurrent.futures import ThreadPoolExecutor
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -20,6 +24,8 @@ from pdf2image import convert_from_path
 # from utils.colpali_manager import ColpaliManager
 from utils.milvus_manager import MilvusManager
 import ollama
+
+file_processor = ThreadPoolExecutor(max_workers=25)
 
 # Configure LLM and embedding models
 Settings.llm = Ollama(
@@ -92,6 +98,12 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
     This function handles different file types and creates appropriate indexes.
     """
     try:
+        # Ensure the current thread has an event loop
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
         # Extract filename and extension
         filename = os.path.basename(file_location)
         temp_dir_name, file_extension = os.path.splitext(filename)
@@ -217,7 +229,6 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
 @router.post("/{repository_id}/upload/", response_model=FileResponse)
 async def upload_files_to_repository(
     repository_id: int,
-    background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -259,7 +270,8 @@ async def upload_files_to_repository(
         db.refresh(file_record)
         uploaded_files.append(FileMetadata.model_validate(file_record))
         
-        background_tasks.add_task(
+        # Submit file processing task to thread pool
+        file_processor.submit(
             process_file_for_training, 
             file_location, 
             current_user.id, 
