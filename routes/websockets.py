@@ -40,7 +40,7 @@ from routes.files import create_text_file, append_to_file
 from rag.llama_handler import action_agent_prompt
 import ollama
 import datetime
-from routes.files import run_async
+from routes.files import file_processor, process_file_for_training
 
 Settings.llm = Ollama(
     model="llama3.3:70b",
@@ -269,13 +269,13 @@ async def websocket_chat(websocket: WebSocket, token: str):
         try:
             with open(file_path, 'a', encoding='utf-8') as file:
                 file.write(content + "\n")
-            
-            docs = SimpleDirectoryReader(input_files=[file_path]).load_data()
 
-            print("inserting......")
-
-            for doc in docs:
-                run_async(graph_index.insert(doc))
+            file_processor.submit(
+                process_file_for_training, 
+                file_path, 
+                user.id, 
+                user.id
+            )            
         except Exception as e:
             print(f"An error occurred: {e}")
             # Optionally, you could log this error to a file or re-raise it
