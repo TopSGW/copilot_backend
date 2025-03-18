@@ -1,4 +1,5 @@
 import os
+import asyncio
 import nest_asyncio
 nest_asyncio.apply()
 
@@ -271,6 +272,12 @@ async def websocket_chat(websocket: WebSocket, token: str):
             docs = SimpleDirectoryReader(input_files=[file_path]).load_data()
 
             print("inserting......")
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
             for doc in docs:
                 graph_index.insert(doc)
         except Exception as e:
