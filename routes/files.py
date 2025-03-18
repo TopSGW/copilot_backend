@@ -86,7 +86,7 @@ def append_to_file(file_path: str, content: str):
     print(f"Content appended to file at: {file_path}")
 
 
-async def process_file_for_training_async(file_location: str, user_id: int, repository_id: int):
+def process_file_for_training(file_location: str, user_id: int, repository_id: int):
     """
     Process uploaded files for training and indexing based on file type.
     This function handles different file types and creates appropriate indexes.
@@ -260,7 +260,7 @@ async def upload_files_to_repository(
         uploaded_files.append(FileMetadata.model_validate(file_record))
         
         background_tasks.add_task(
-            process_file_for_training_async, 
+            process_file_for_training, 
             file_location, 
             current_user.id, 
             repository_id
