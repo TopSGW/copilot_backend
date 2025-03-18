@@ -6,7 +6,7 @@ from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
 from datetime import timedelta
 from llama_index.vector_stores.milvus import MilvusVectorStore
-
+from llama_index.core import SimpleDirectoryReader
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core import PropertyGraphIndex, Settings
 from llama_index.llms.ollama import Ollama
@@ -255,6 +255,20 @@ async def websocket_chat(websocket: WebSocket, token: str):
     note_path = os.path.join(repo_upload_dir, "note.txt")
     create_text_file(note_path)
 
+    def append_save_to_file(file_path: str, content: str):
+        """
+        Appends the provided content to the file at file_path.
+        If the file does not exist, it will be created automatically.
+        """
+        with open(file_path, 'a', encoding='utf-8') as file:
+            file.write(content + "\n")
+        
+        docs = SimpleDirectoryReader(input_files=[note_path]).load_data()
+
+        for doc in docs:
+            graph_index.insert(doc)
+        print(f"Content appended to file at: {file_path}")
+
     add_data_agent = ReActAgent(
         name="add_data_agent",
         description="",
@@ -266,7 +280,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
             f"first use the query_engine_tool to retrieve the required information, then use append_to_file to save it. "
             f"Always use the file_path specified by {note_path} for file operations."
         ),
-        tools=[append_to_file, query_engine_tool],
+        tools=[append_save_to_file, query_engine_tool],
         llm=Settings.llm,
     )
 
