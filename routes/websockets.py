@@ -263,10 +263,11 @@ async def websocket_chat(websocket: WebSocket, token: str):
         Appends the provided content to the file at file_path.
         If the file does not exist, it will be created automatically.
         """
+        print("note text training start......")
         with open(file_path, 'a', encoding='utf-8') as file:
             file.write(content + "\n")
         
-        docs = SimpleDirectoryReader(input_files=[note_path]).load_data()
+        docs = SimpleDirectoryReader(input_files=[file_path]).load_data()
 
         for doc in docs:
             graph_index.insert(doc)
