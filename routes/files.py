@@ -1,12 +1,10 @@
 import os
-import threading
 import asyncio
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
 
 from llama_index.core import SimpleDirectoryReader, PropertyGraphIndex, Settings, StorageContext, Document
 from llama_index.vector_stores.milvus import MilvusVectorStore
@@ -45,8 +43,6 @@ router = APIRouter(prefix="/files", tags=["files"])
 
 # Create a thread pool executor for file processing
 # Adjust max_workers based on your system's capabilities
-file_processor = ThreadPoolExecutor(max_workers=20)
-
 class FileMetadata(BaseModel):
     filename: str
     original_filename: str
@@ -93,7 +89,7 @@ def append_to_file(file_path: str, content: str):
     print(f"Content appended to file at: {file_path}")
 
 
-def process_file_for_training(file_location: str, user_id: int, repository_id: int):
+async def process_file_for_training(file_location: str, user_id: int, repository_id: int):
     """
     Process uploaded files for training and indexing based on file type.
     This function handles different file types and creates appropriate indexes.
@@ -110,9 +106,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
         filename = os.path.basename(file_location)
         temp_dir_name, file_extension = os.path.splitext(filename)
         repo_upload_dir = os.path.dirname(file_location)
-        
-        print(f"Thread {threading.current_thread().name} - Processing file: {filename}, Extension: {file_extension}")
-        
+             
         # Initialize index and vector stores
         index_config = {
             "index_type": "IVF_FLAT",  # Specify the type of index
@@ -172,7 +166,6 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                     }]
                 )
                 print("text response:", txt_response.message.content)
-                print(f"Thread {threading.current_thread().name} - Image text response received")
                 txt_file_location = os.path.join(repo_upload_dir, os.path.splitext(filename)[0] + ".txt")
 
                 with open(txt_file_location, "w") as image_file:
@@ -192,8 +185,6 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                 os.makedirs(pdf_dir, exist_ok=True)
                 images = convert_from_path(file_location)
                 
-                print(f"Thread {threading.current_thread().name} - PDF with {len(images)} pages")
-
                 # Save all images in the subdirectory
                 for i, image in enumerate(images):
                     image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
@@ -217,7 +208,6 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                             'images': [image_save_path]
                         }]
                     )
-                    print(f"Thread {threading.current_thread().name} - Processing PDF page {i}")
                     
                     with open(pdf_txt_file, "a") as f:
                         f.write(f"--- Response for page {i} ---\n")
@@ -229,19 +219,18 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                 for doc in simple_doc: 
                     doc.metadata = source_data[0].metadata
                     graph_index.insert(doc)
-
-        print(f"Thread {threading.current_thread().name} - Processing completed for: {file_location}")
         
     except Exception as e:
-        print(f"Thread {threading.current_thread().name} - Error processing file {file_location}: {str(e)}")
+        print(f"Thread - Error processing file {file_location}: {str(e)}")
 
 
 @router.post("/{repository_id}/upload/", response_model=FileResponse)
 async def upload_files_to_repository(
     repository_id: int,
+    background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     # Validate repository access
     repository = db.query(Repository).filter(
@@ -281,7 +270,7 @@ async def upload_files_to_repository(
         uploaded_files.append(FileMetadata.model_validate(file_record))
         
         # # Submit file processing task to thread pool
-        file_processor.submit(
+        background_tasks.submit(
             process_file_for_training, 
             file_location, 
             current_user.id, 
