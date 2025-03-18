@@ -82,23 +82,23 @@ class LlamaHandler:
         raise NotImplementedError("Embeddings API is not available in Ollama's OpenAI compatibility mode.")
 
 # Example usage:
-async def main():
-    print("starting..")
-    start_time = datetime.datetime.now()
-    print("Main function started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
+# async def main():
+#     print("starting..")
+#     start_time = datetime.datetime.now()
+#     print("Main function started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
 
-    handler = LlamaHandler(system_prompt=action_agent_prompt)
-    messages = [{"role": "user", "content": "Hi there. Who is Abraham? If you know, please save this information."}]
+#     handler = LlamaHandler(system_prompt=action_agent_prompt)
+#     messages = [{"role": "user", "content": "Hi there. Who is Abraham? If you know, please save this information."}]
     
-    try:
-        response = await handler.agenerate_chat_completion(messages, model="llama3.3:70b")
-        print("Chat Completion:", response)
-    except Exception as e:
-        print("Error:", e)
+#     try:
+#         response = await handler.agenerate_chat_completion(messages, model="llama3.3:70b")
+#         print("Chat Completion:", response)
+#     except Exception as e:
+#         print("Error:", e)
 
-    end_time = datetime.datetime.now()
-    print("Main function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
-    print("Total duration:", end_time - start_time)
+#     end_time = datetime.datetime.now()
+#     print("Main function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
+#     print("Total duration:", end_time - start_time)
 
 # To run the example, uncomment the line below:
 # asyncio.run(main())
