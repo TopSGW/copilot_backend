@@ -1,3 +1,5 @@
+import asyncio
+import nest_asyncio
 import uvloop
 uvloop.install()
 
@@ -13,6 +15,10 @@ from routes.repositories import router as repositories_router
 from routes.files import router as files_router
 # Configure logging
 # logging.basicConfig(level=logging.DEBUG)
+
+if not isinstance(asyncio.get_event_loop(), uvloop.Loop):
+    nest_asyncio.apply()
+
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
