@@ -41,8 +41,6 @@ Settings.embed_model = ollama_embedding
 
 router = APIRouter(prefix="/files", tags=["files"])
 
-# Create a thread pool executor for file processing
-# Adjust max_workers based on your system's capabilities
 class FileMetadata(BaseModel):
     filename: str
     original_filename: str
@@ -214,7 +212,7 @@ async def process_file_for_training(file_location: str, user_id: int, repository
                     graph_index.insert(doc)
         
     except Exception as e:
-        print(f"Thread - Error processing file {file_location}: {str(e)}")
+        print(f"Error processing file {file_location}: {str(e)}")
 
 
 @router.post("/{repository_id}/upload/", response_model=FileResponse)
@@ -262,7 +260,6 @@ async def upload_files_to_repository(
         db.refresh(file_record)
         uploaded_files.append(FileMetadata.model_validate(file_record))
         
-        # # Submit file processing task to thread pool
         background_tasks.add_task(
             process_file_for_training, 
             file_location, 
