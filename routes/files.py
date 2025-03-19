@@ -25,6 +25,7 @@ from pdf2image import convert_from_path
 # from utils.milvus_manager import MilvusManager
 import ollama
 
+from celery_worker import process_file_for_training
 file_processor = ThreadPoolExecutor(max_workers=25)
 
 def run_async(coro):
@@ -263,7 +264,6 @@ async def upload_files_to_repository(
         #     current_user.id, 
         #     repository_id
         # )
-        from celery_worker import process_file_for_training
         result = process_file_for_training.delay(file_location, current_user.id, repository_id)
         print(result)
         print(f"Submitted file {file.filename} for background processing")
