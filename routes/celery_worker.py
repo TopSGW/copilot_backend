@@ -19,6 +19,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
     Process uploaded files for training and indexing based on file type.
     This function handles different file types and creates appropriate indexes.
     """
+    print("#######################")
     try:
         # Ensure the current thread has an event loop
         # try:
