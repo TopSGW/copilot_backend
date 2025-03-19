@@ -39,7 +39,7 @@ from routes.files import create_text_file, append_to_file
 from rag.llama_handler import action_agent_prompt
 import ollama
 import datetime
-from routes.files import file_processor, process_file_for_training
+from routes.files import file_processor, process_file_for_training_async
 
 Settings.llm = Ollama(
     model="llama3.3:70b",
