@@ -9,6 +9,7 @@ from autogen_core import CancellationToken
 from datetime import timedelta
 from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.core import SimpleDirectoryReader
+from llama_index.core.prompts import ChatMessage, ChatPromptTemplate
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core import PropertyGraphIndex, Settings
 from llama_index.llms.ollama import Ollama
@@ -339,6 +340,8 @@ async def websocket_chat(websocket: WebSocket, token: str):
                     "status": False
                 })
                 continue
+
+            messages = ChatPromptTemplate.from_messages(messages)
             # query_vec = colpali_manager.process_text([user_input])[0]
 
             # search_res = milvus_manager.search(query_vec, topk=5)
