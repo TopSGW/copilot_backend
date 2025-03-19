@@ -22,12 +22,28 @@ formatter = logging.Formatter(
 stream_handler.setFormatter(formatter)
 logger.addHandler(stream_handler)
 
+Settings.llm = Ollama(
+    model="llama3.3:70b",
+    temperature=0.3,
+    request_timeout=120.0,
+    base_url="http://localhost:11434"
+)
+
+# Define embedding model explicitly
+ollama_embedding = OllamaEmbedding(
+    model_name="llama3.3:70b",
+    base_url="http://localhost:11434",
+)
+
+# Set the embedding model for all indices
+Settings.embed_model = ollama_embedding
+
 # Configure Celery with Redis as broker
 celery_app = Celery("worker", broker="redis://localhost:6379/0", backend="redis://localhost:6379/1")
 
 # You can define a synchronous task (or run async code inside a sync function)
 @celery_app.task
-def process_file_for_training(file_location: str, user_id: int, repository_id: int):
+def process_file_for_training(file_location: str, user_id: int, repository_id: int, graph_vec_store):
     """
     Process uploaded files for training and indexing based on file type.
     This function handles different file types and creates appropriate indexes.
@@ -45,26 +61,9 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
         temp_dir_name, file_extension = os.path.splitext(filename)
         repo_upload_dir = os.path.dirname(file_location)
              
-        # Initialize index and vector stores
-        index_config = {
-            "index_type": "IVF_FLAT",  # Specify the type of index
-            "params": {
-                "nlist": 128          # Index-specific parameter (number of clusters)
-            }
-        }
-
         property_graph_store = NebulaPropertyGraphStore(
             space=f'space_{user_id}'
         )
-        graph_vec_store = MilvusVectorStore(
-            uri="./milvus_graph.db", 
-            collection_name=f"space_{user_id}",
-            dim=8192, 
-            overwrite=False,         
-            similarity_metric="COSINE",
-            index_config=index_config
-        )
-
         graph_index = PropertyGraphIndex.from_existing(
             property_graph_store=property_graph_store,
             vector_store=graph_vec_store,

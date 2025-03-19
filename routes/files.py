@@ -257,6 +257,22 @@ async def upload_files_to_repository(
         db.refresh(file_record)
         uploaded_files.append(FileMetadata.model_validate(file_record))
         
+        # Initialize index and vector stores
+        index_config = {
+            "index_type": "IVF_FLAT",  # Specify the type of index
+            "params": {
+                "nlist": 128          # Index-specific parameter (number of clusters)
+            }
+        }
+
+        graph_vec_store = MilvusVectorStore(
+            uri="./milvus_graph.db", 
+            collection_name=f"space_{current_user.id}",
+            dim=8192, 
+            overwrite=False,         
+            similarity_metric="COSINE",
+            index_config=index_config
+        )
         # Submit file processing task to thread pool
         # file_processor.submit(
         #     process_file_for_training, 
@@ -264,7 +280,7 @@ async def upload_files_to_repository(
         #     current_user.id, 
         #     repository_id
         # )
-        result = process_file_for_training.delay(file_location, current_user.id, repository_id)
+        result = process_file_for_training.delay(file_location, current_user.id, repository_id, graph_vec_store)
         print(result)
         result = result.ready()
         print(result)
