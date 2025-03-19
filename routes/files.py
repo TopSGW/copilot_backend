@@ -100,34 +100,24 @@ def append_to_file(file_path: str, content: str):
     print(f"Content appended to file at: {file_path}")
 
 
-def process_file_for_training_async(file_location: str, user_id: int, repository_id: int):
+async def process_file_for_training_async(file_location: str, user_id: int, repository_id: int):
     """
     Process uploaded files for training and indexing based on file type.
-    This function handles different file types and creates appropriate indexes.
+    This async function handles different file types and creates appropriate indexes.
+    Blocking operations are offloaded via asyncio.to_thread.
     """
     try:
-        # Ensure the current thread has an event loop
-        # try:
-        #     asyncio.get_running_loop()
-        # except RuntimeError:
-        #     loop = asyncio.new_event_loop()
-        #     asyncio.set_event_loop(loop)
         # Extract filename and extension
         filename = os.path.basename(file_location)
         temp_dir_name, file_extension = os.path.splitext(filename)
         repo_upload_dir = os.path.dirname(file_location)
              
-        # Initialize index and vector stores
+        # Initialize index and vector stores (offload creation if blocking)
         index_config = {
             "index_type": "IVF_FLAT",  # Specify the type of index
-            "params": {
-                "nlist": 128          # Index-specific parameter (number of clusters)
-            }
+            "params": {"nlist": 128}   # Index-specific parameter (number of clusters)
         }
-
-        property_graph_store = NebulaPropertyGraphStore(
-            space=f'space_{user_id}'
-        )
+        property_graph_store = NebulaPropertyGraphStore(space=f'space_{user_id}')
         graph_vec_store = MilvusVectorStore(
             uri="./milvus_graph.db", 
             collection_name=f"space_{user_id}",
@@ -136,41 +126,49 @@ def process_file_for_training_async(file_location: str, user_id: int, repository
             similarity_metric="COSINE",
             index_config=index_config
         )
-
-        graph_index = PropertyGraphIndex.from_existing(
+        # Assuming from_existing is synchronous; offload if needed.
+        graph_index = await asyncio.to_thread(
+            PropertyGraphIndex.from_existing,
             property_graph_store=property_graph_store,
             vector_store=graph_vec_store,
             llm=Settings.llm,
-            embed_model=Settings.embed_model,  # Explicitly set embedding model
+            embed_model=Settings.embed_model,
         )
 
         milvus_manager = MilvusManager(
             milvus_uri="./milvus_original.db",
             collection_name=f"original_{user_id}"    
         )
-        milvus_manager.create_index()
+        await asyncio.to_thread(milvus_manager.create_index)
 
         # Vision model prompt
-        text_con_prompt = """
-            Please analyze the provided image and generate a detailed, plain-language description of its contents. 
-            Include key elements such as objects, people, colors, spatial relationships, background details, and any text visible in the image. 
-            The goal is to create a comprehensive textual representation that fully conveys the visual information to someone who cannot see the image.
-        """
+        text_con_prompt = (
+            "Please analyze the provided image and generate a detailed, plain-language description of its contents. "
+            "Include key elements such as objects, people, colors, spatial relationships, background details, and any text visible in the image. "
+            "The goal is to create a comprehensive textual representation that fully conveys the visual information to someone who cannot see the image."
+        )
 
-        source_data = SimpleDirectoryReader(input_files=[file_location]).load_data()
+        # Load source data (offload if blocking)
+        source_data = await asyncio.to_thread(
+            lambda: SimpleDirectoryReader(input_files=[file_location]).load_data()
+        )
         print(source_data[0].metadata)
+
         # Process based on file type
-        match file_extension: 
+        match file_extension.lower():
             case '.txt':
-                print("starting text file processing............")
-                simple_doc = SimpleDirectoryReader(input_files=[file_location]).load_data()
+                print("Starting text file processing...")
+                simple_doc = await asyncio.to_thread(
+                    lambda: SimpleDirectoryReader(input_files=[file_location]).load_data()
+                )
                 for doc in simple_doc:
-                    graph_index.insert(doc)
-                
-                print(f"{file_location} Text file processed successfully")
+                    await asyncio.to_thread(graph_index.insert, doc)
+                print(f"{file_location} text file processed successfully.")
 
             case '.jpg' | '.png' | '.jpeg':
-                txt_response = ollama.chat(
+                # Call the vision API (if ollama.chat is synchronous, offload it)
+                txt_response = await asyncio.to_thread(
+                    ollama.chat,
                     model='llama3.2-vision:90b',
                     messages=[{
                         'role': 'user',
@@ -178,42 +176,37 @@ def process_file_for_training_async(file_location: str, user_id: int, repository
                         'images': [file_location]
                     }]
                 )
-                print("text response:", txt_response.message.content)
+                print("Text response:", txt_response.message.content)
                 txt_file_location = os.path.join(repo_upload_dir, os.path.splitext(filename)[0] + ".txt")
-
-                with open(txt_file_location, "w") as image_file:
-                    image_file.write(str(txt_response.message.content))
-
-                simple_doc = SimpleDirectoryReader(input_files=[txt_file_location]).load_data()
-                
-                for doc in simple_doc: 
-                    print("meta data inserting...........")
+                # Write response to file (offload file I/O)
+                await asyncio.to_thread(
+                    lambda: open(txt_file_location, "w").write(str(txt_response.message.content))
+                )
+                simple_doc = await asyncio.to_thread(
+                    lambda: SimpleDirectoryReader(input_files=[txt_file_location]).load_data()
+                )
+                for doc in simple_doc:
+                    print("Inserting metadata...")
                     doc.metadata = source_data[0].metadata
-                    print("meta data printing....")
-                    graph_index.insert(doc)
+                    await asyncio.to_thread(graph_index.insert, doc)
 
             case '.pdf':
-                # Create a subdirectory to save images (using PDF base name)
+                # Create subdirectory for PDF images
                 pdf_dir = os.path.join(repo_upload_dir, temp_dir_name)
                 os.makedirs(pdf_dir, exist_ok=True)
-                images = convert_from_path(file_location)
-                
-                # Save all images in the subdirectory
+                images = await asyncio.to_thread(convert_from_path, file_location)
+                # Save images from PDF
                 for i, image in enumerate(images):
                     image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
-                    image.save(image_save_path, "PNG")
-
-                # Define the combined text file with the same base name as the PDF file
+                    await asyncio.to_thread(image.save, image_save_path, "PNG")
                 pdf_txt_file = os.path.join(repo_upload_dir, f"{temp_dir_name}.txt")
-                # Clear any existing content (or create new)
-                with open(pdf_txt_file, "w") as f:
-                    f.write("")
-
-                # Process each page and append its response to the combined text file
+                # Clear existing content or create a new file
+                await asyncio.to_thread(lambda: open(pdf_txt_file, "w").write(""))
+                # Process each page image
                 for i, _ in enumerate(images):
                     image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
-                    
-                    txt_response = ollama.chat(
+                    txt_response = await asyncio.to_thread(
+                        ollama.chat,
                         model='llama3.2-vision:90b',
                         messages=[{
                             'role': 'user',
@@ -221,25 +214,22 @@ def process_file_for_training_async(file_location: str, user_id: int, repository
                             'images': [image_save_path]
                         }]
                     )
-                    
-                    with open(pdf_txt_file, "a") as f:
-                        f.write(f"--- Response for page {i} ---\n")
-                        f.write(txt_response.message.content)
-                        f.write("\n\n")
-                
-                # Load the combined text file for indexing
-                simple_doc = SimpleDirectoryReader(input_files=[pdf_txt_file]).load_data()
-                for doc in simple_doc: 
+                    # Append response to combined text file
+                    await asyncio.to_thread(
+                        lambda: open(pdf_txt_file, "a").write(
+                            f"--- Response for page {i} ---\n{txt_response.message.content}\n\n"
+                        )
+                    )
+                simple_doc = await asyncio.to_thread(
+                    lambda: SimpleDirectoryReader(input_files=[pdf_txt_file]).load_data()
+                )
+                for doc in simple_doc:
                     doc.metadata = source_data[0].metadata
-                    graph_index.insert(doc)
-        # print(f"Thread {threading.current_thread().name} - Processing completed for: {file_location}")
+                    await asyncio.to_thread(graph_index.insert, doc)
+        print(f"Processing completed for: {file_location}")
 
     except Exception as e:
         print(f"Error processing file {file_location}: {str(e)}")
-
-def process_file_for_training(file_location: str, user_id: int, repository_id: int):
-    asyncio.run(process_file_for_training_async(file_location, user_id, repository_id))
-
 
 @router.post("/{repository_id}/upload/", response_model=FileResponse)
 async def upload_files_to_repository(
@@ -287,7 +277,7 @@ async def upload_files_to_repository(
         uploaded_files.append(FileMetadata.model_validate(file_record))
 
         background_tasks.add_task(
-            process_file_for_training,  # function to run in the background
+            process_file_for_training_async,  # function to run in the background
             file_location,
             current_user.id,
             repository_id
