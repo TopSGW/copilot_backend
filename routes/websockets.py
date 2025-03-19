@@ -264,9 +264,11 @@ async def websocket_chat(websocket: WebSocket, token: str):
         If the file does not exist, it will be created automatically.
         """
         print("note text training start......")
+        time_content = datetime.datetime.now()
+        input_content = "[" + str(time_content) + "]" + "\n" + content
         try:
             with open(file_path, 'a', encoding='utf-8') as file:
-                file.write(content + "\n")
+                file.write(input_content + "\n")
 
             file_processor.submit(
                 process_file_for_training, 
@@ -284,19 +286,22 @@ async def websocket_chat(websocket: WebSocket, token: str):
         name="add_data_agent",
         description="Agent responsible for saving data upon user request.",
         system_prompt=(
-            f"Your primary role is to add (save/append) information only when explicitly requested by the user. "
-            f"Otherwise, do not use any tools. "
-            f"\n\n"
-            f"For saving operations:\n"
-            f"- If the user directly asks to save some content (e.g., 'Please save the following...'), "
-            f"use the entire query as the data to be saved.\n"
-            f"- If the user first wants to retrieve or check information before saving (e.g., 'Do you know Larry? If yes, please save it'), "
-            f"first use the 'query_engine_tool' to gather the information, then use 'append_save_to_file' to save it.\n"
-            f"\n"
-            f"For all other queries (e.g., general questions that do not involve saving data), "
-            f"do not use any tools.\n"
-            f"\n"
-            f"Always use the file_path specified by {note_path} for file operations."
+            "Your primary role is to add (save/append) information only when explicitly requested by the user. "
+            "Otherwise, do not use any tools. "
+            "\n\n"
+            "When saving data, you must store it using the following format:\n"
+            "[topic]\n"
+            "[info]\n"
+            "\n"
+            "For saving operations:\n"
+            "- If the user directly asks to save some content (e.g., 'Please save the following...'), "
+            "use the entire query as the data to be saved.\n"
+            "- If the user first wants to retrieve or check information before saving (e.g., 'Do you know Larry? If yes, please save it'), "
+            "first use the 'query_engine_tool' to gather the information, then use 'append_save_to_file' to save it.\n"
+            "\n"
+            "For all other queries (e.g., general questions that do not involve saving data), do not use any tools.\n"
+            "\n"
+            "Always use the file_path specified by {note_path} for file operations."
         ),
         tools=[append_save_to_file, query_engine_tool],
         llm=Settings.llm,
@@ -327,7 +332,13 @@ async def websocket_chat(websocket: WebSocket, token: str):
             start_time = datetime.datetime.now()
             print("Main function started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
             auth_input_data = json.loads(data)
-            user_input = auth_input_data.get("user_input", "")
+            messages = auth_input_data.get("user_input", [])
+            if not isinstance(messages, list):
+                await websocket.send_json({
+                    "message": "Invalid input format. Expected a list of messages.",
+                    "status": False
+                })
+                continue
             # query_vec = colpali_manager.process_text([user_input])[0]
 
             # search_res = milvus_manager.search(query_vec, topk=5)
@@ -358,7 +369,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
             # Human: You are an AI assistant. You are able to find answers to the questions from the contextual passage snippets provided.
             # """.strip()
 
-            response = await agent.run(user_msg=user_input)
+            response = await agent.run(chat_history=messages)
             print(response)
             final_answer = str(response)
             
