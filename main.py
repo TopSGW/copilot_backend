@@ -1,7 +1,5 @@
 import asyncio
-import nest_asyncio
 import uvloop
-uvloop.install()
 
 from fastapi import FastAPI, WebSocket, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,10 +12,9 @@ from routes.websockets import websocket_auth_dialogue, websocket_chat
 from routes.repositories import router as repositories_router
 from routes.files import router as files_router
 # Configure logging
-# logging.basicConfig(level=logging.DEBUG)
+uvloop.install()
 
-if not isinstance(asyncio.get_event_loop(), uvloop.Loop):
-    nest_asyncio.apply()
+logging.basicConfig(level=logging.DEBUG)
 
 logger = logging.getLogger(__name__)
 
@@ -70,4 +67,4 @@ async def websocket_chat_endpoint(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="debug")
+    uvicorn.run(app, host="0.0.0.0", port=8000, loop="uvloop", log_level="debug")
