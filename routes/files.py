@@ -100,7 +100,7 @@ def append_to_file(file_path: str, content: str):
     print(f"Content appended to file at: {file_path}")
 
 
-def process_file_for_training(file_location: str, user_id: int, repository_id: int):
+def process_file_for_training_async(file_location: str, user_id: int, repository_id: int):
     """
     Process uploaded files for training and indexing based on file type.
     This function handles different file types and creates appropriate indexes.
@@ -236,6 +236,9 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
 
     except Exception as e:
         print(f"Error processing file {file_location}: {str(e)}")
+
+def process_file_for_training(file_location: str, user_id: int, repository_id: int):
+    asyncio.run(process_file_for_training_async(file_location, user_id, repository_id))
 
 
 @router.post("/{repository_id}/upload/", response_model=FileResponse)
