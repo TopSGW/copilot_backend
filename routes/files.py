@@ -215,7 +215,6 @@ async def process_file_for_training_async(file_location: str, user_id: int, repo
 @router.post("/{repository_id}/upload/", response_model=FileResponse)
 async def upload_files_to_repository(
     repository_id: int,
-    background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -256,13 +255,6 @@ async def upload_files_to_repository(
         db.commit()
         db.refresh(file_record)
         uploaded_files.append(FileMetadata.model_validate(file_record))
-
-        background_tasks.add_task(
-            process_file_for_training_async,  # function to run in the background
-            file_location,
-            current_user.id,
-            repository_id
-        )
         
         # Submit file processing task to thread pool
         # file_processor.submit(
@@ -271,6 +263,8 @@ async def upload_files_to_repository(
         #     current_user.id, 
         #     repository_id
         # )
+        from routes.celery_worker import process_file_for_training
+        process_file_for_training.delay(file_location, current_user.id, repository_id)
         print(f"Submitted file {file.filename} for background processing")
 
     return FileResponse(
