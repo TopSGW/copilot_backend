@@ -1,7 +1,5 @@
 import os
 import asyncio
-import nest_asyncio
-nest_asyncio.apply()
 
 import json
 from fastapi import WebSocket, HTTPException, Depends
