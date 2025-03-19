@@ -23,7 +23,7 @@ stream_handler.setFormatter(formatter)
 logger.addHandler(stream_handler)
 
 # Configure Celery with Redis as broker
-celery_app = Celery("worker", broker="redis://localhost:6379/0")
+celery_app = Celery("worker", broker="redis://localhost:6379/0", backend="redis://localhost:6379/1")
 
 # You can define a synchronous task (or run async code inside a sync function)
 @celery_app.task
