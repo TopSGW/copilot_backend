@@ -309,7 +309,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     query_agent = ReActAgent(
         name="info_lookup",
         description="Looks up information",
-        system_prompt="Use your tool to query a RAG system to answer information",
+        system_prompt=f"Use your tool to query a RAG system to answer information \n{prompts.RAG_SYSTEM_PROMPT}",
         tools=[query_engine_tool],
         llm=Settings.llm,
     )
