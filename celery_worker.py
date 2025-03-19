@@ -1,5 +1,6 @@
 from celery import Celery
 import os
+import logging
 import asyncio
 from llama_index.core import SimpleDirectoryReader, PropertyGraphIndex, Settings
 from llama_index.vector_stores.milvus import MilvusVectorStore
@@ -8,6 +9,18 @@ from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.graph_stores.nebula import NebulaPropertyGraphStore
 from pdf2image import convert_from_path
 import ollama
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)  # Set your desired log level
+
+
+# Create a stream handler (console output)
+stream_handler = logging.StreamHandler()
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+stream_handler.setFormatter(formatter)
+logger.addHandler(stream_handler)
 
 # Configure Celery with Redis as broker
 celery_app = Celery("worker", broker="redis://localhost:6379/0")
@@ -19,7 +32,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
     Process uploaded files for training and indexing based on file type.
     This function handles different file types and creates appropriate indexes.
     """
-    print("#######################")
+    logger.info("Starting processing for file: %s", file_location)
     try:
         # Ensure the current thread has an event loop
         # try:
