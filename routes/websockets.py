@@ -340,8 +340,10 @@ async def websocket_chat(websocket: WebSocket, token: str):
                     "status": False
                 })
                 continue
-
-            messages = ChatPromptTemplate.from_messages(messages)
+            
+            chat_history = []
+            for message in messages:
+                chat_history.append(ChatMessage(content=message.get("content"), role=message.get("role")))
             # query_vec = colpali_manager.process_text([user_input])[0]
 
             # search_res = milvus_manager.search(query_vec, topk=5)
@@ -372,7 +374,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
             # Human: You are an AI assistant. You are able to find answers to the questions from the contextual passage snippets provided.
             # """.strip()
 
-            response = await agent.run(chat_history=messages)
+            response = await agent.run(chat_history=chat_history)
             print(response)
             final_answer = str(response)
             
