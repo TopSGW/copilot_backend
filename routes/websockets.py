@@ -270,13 +270,11 @@ async def websocket_chat(websocket: WebSocket, token: str):
         try:
             with open(file_path, 'a', encoding='utf-8') as file:
                 file.write(input_content + "\n")
-
-            file_processor.submit(
-                process_file_for_training, 
-                file_path, 
-                user.id, 
-                user.id
-            )            
+            process_file_for_training_async(
+                file_location=file_path,
+                user_id=user.id,
+                repository_id=1
+            )
         except Exception as e:
             print(f"An error occurred: {e}")
             # Optionally, you could log this error to a file or re-raise it
