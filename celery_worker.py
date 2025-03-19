@@ -10,7 +10,7 @@ from pdf2image import convert_from_path
 import ollama
 
 # Configure Celery with Redis as broker
-celery_app = Celery("worker", broker="redis://localhost:6379/0", include=["routes.celery_worker"])
+celery_app = Celery("worker", broker="redis://localhost:6379/0")
 
 # You can define a synchronous task (or run async code inside a sync function)
 @celery_app.task

@@ -263,7 +263,7 @@ async def upload_files_to_repository(
         #     current_user.id, 
         #     repository_id
         # )
-        from routes.celery_worker import process_file_for_training
+        from celery_worker import process_file_for_training
         process_file_for_training.delay(file_location, current_user.id, repository_id)
         print(f"Submitted file {file.filename} for background processing")
 
