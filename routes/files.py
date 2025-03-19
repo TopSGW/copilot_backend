@@ -101,19 +101,6 @@ def append_to_file(file_path: str, content: str):
 
 async def process_file_for_training_async(file_location: str, user_id: int, repository_id: int):
     try:
-
-        local_llm = Ollama(
-            model="llama3.3:70b",
-            temperature=0.3,
-            request_timeout=120.0,
-            base_url="http://localhost:11434"
-        )
-
-        local_embedding = OllamaEmbedding(
-            model_name="llama3.3:70b",
-            base_url="http://localhost:11434"
-        )
-
         # Extract filename and extension
         filename = os.path.basename(file_location)
         temp_dir_name, file_extension = os.path.splitext(filename)
@@ -166,7 +153,7 @@ async def process_file_for_training_async(file_location: str, user_id: int, repo
             case '.jpg' | '.png' | '.jpeg':
                 # Create a new Ollama client instance for this call
                 txt_response = await asyncio.to_thread(
-                    local_llm.chat,
+                    ollama.chat,
                     model='llama3.2-vision:90b',
                     messages=[{
                         'role': 'user',
@@ -199,7 +186,7 @@ async def process_file_for_training_async(file_location: str, user_id: int, repo
                 for i, _ in enumerate(images):
                     image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
                     txt_response = await asyncio.to_thread(
-                        local_llm.chat,
+                        ollama.chat,
                         model='llama3.2-vision:90b',
                         messages=[{
                             'role': 'user',
