@@ -107,11 +107,11 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
     """
     try:
         # Ensure the current thread has an event loop
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+        # try:
+        #     asyncio.get_running_loop()
+        # except RuntimeError:
+        #     loop = asyncio.new_event_loop()
+        #     asyncio.set_event_loop(loop)
         # Extract filename and extension
         filename = os.path.basename(file_location)
         temp_dir_name, file_extension = os.path.splitext(filename)
@@ -232,7 +232,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                 for doc in simple_doc: 
                     doc.metadata = source_data[0].metadata
                     graph_index.insert(doc)
-        print(f"Thread {threading.current_thread().name} - Processing completed for: {file_location}")
+        # print(f"Thread {threading.current_thread().name} - Processing completed for: {file_location}")
 
     except Exception as e:
         print(f"Error processing file {file_location}: {str(e)}")
@@ -241,6 +241,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
 @router.post("/{repository_id}/upload/", response_model=FileResponse)
 async def upload_files_to_repository(
     repository_id: int,
+    background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -281,14 +282,21 @@ async def upload_files_to_repository(
         db.commit()
         db.refresh(file_record)
         uploaded_files.append(FileMetadata.model_validate(file_record))
-        
-        # Submit file processing task to thread pool
-        file_processor.submit(
-            process_file_for_training, 
-            file_location, 
-            current_user.id, 
+
+        background_tasks.add_task(
+            process_file_for_training,  # function to run in the background
+            file_location,
+            current_user.id,
             repository_id
         )
+        
+        # Submit file processing task to thread pool
+        # file_processor.submit(
+        #     process_file_for_training, 
+        #     file_location, 
+        #     current_user.id, 
+        #     repository_id
+        # )
         print(f"Submitted file {file.filename} for background processing")
 
     return FileResponse(
