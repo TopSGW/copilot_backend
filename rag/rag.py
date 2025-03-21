@@ -4,12 +4,14 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
 
+from config.config import OLLAMA_URL
+
 print("staring ...")
 # model_client = OpenAIChatCompletionClient(model="gpt-4o", api_key=OPENAI_API_KEY)
 
 model_client = OpenAIChatCompletionClient(
     model="llama3.3:70b",
-    base_url="http://localhost:11434/v1",
+    base_url=f"{OLLAMA_URL}/v1",
     api_key="placeholder",
     model_info={
         "vision": False,
