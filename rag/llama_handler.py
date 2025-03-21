@@ -1,5 +1,6 @@
 import os
 import aiohttp
+from config.config import OLLAMA_URL
 
 llama_system_prompt = """
 You are a Retrieval Augmented Generation (RAG) system designed to deliver comprehensive document analysis and question answering, with a particular emphasis on accounting and financial documents.
@@ -41,7 +42,7 @@ Guidelines:
 """
 
 class LlamaHandler:
-    def __init__(self, system_prompt: str = "", base_url: str = "http://localhost:11434/v1", api_key: str = None):
+    def __init__(self, system_prompt: str = "", base_url: str = f"{OLLAMA_URL}/v1", api_key: str = None):
         # For Ollama compatibility, the API key is required but not actually used;
         # we default to "ollama" if not provided.
         self.api_key = api_key or os.environ.get("OLLAMA_API_KEY", "ollama")
