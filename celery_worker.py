@@ -169,3 +169,4 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
 
     except Exception as e:
         print(f"Error processing file {file_location}: {str(e)}")
+        raise
