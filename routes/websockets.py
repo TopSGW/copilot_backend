@@ -23,7 +23,7 @@ from llama_index.core.agent.workflow import (
 )
 
 import prompts
-
+from celery_worker import process_file_for_training
 from databases.database import get_db, User
 from auth import get_current_user, create_access_token, authenticate_user, get_password_hash, get_user_by_phone
 from config.config import ACCESS_TOKEN_EXPIRE_HOURS
@@ -265,11 +265,13 @@ async def websocket_chat(websocket: WebSocket, token: str):
         print("note text training start......")
         time_content = datetime.datetime.now()
         input_content = "[" + str(time_content) + "]" + "\n" + content
+        print(f">>>>>>>>content<<<<<<< {input_content}")
         try:
             with open(file_path, 'a', encoding='utf-8') as file:
                 file.write(input_content + "\n")
-                from celery_worker import process_file_for_training
+
                 process_file_for_training.delay(file_path, user.id, 1)
+                
         except Exception as e:
             print(f"An error occurred: {e}")
             # Optionally, you could log this error to a file or re-raise it
