@@ -13,3 +13,6 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+OLLAMA_URL = "http://157.157.221.29:20627"
+os.environ['OLLAMA_HOST'] = OLLAMA_URL

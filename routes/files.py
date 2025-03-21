@@ -24,6 +24,7 @@ from pdf2image import convert_from_path
 # from utils.colpali_manager import ColpaliManager
 # from utils.milvus_manager import MilvusManager
 import ollama
+from config.config import OLLAMA_URL
 
 from celery_worker import process_file_for_training
 file_processor = ThreadPoolExecutor(max_workers=25)
@@ -41,13 +42,13 @@ Settings.llm = Ollama(
     model="llama3.3:70b",
     temperature=0.3,
     request_timeout=120.0,
-    base_url="http://localhost:11434"
+    base_url=OLLAMA_URL
 )
 
 # Define embedding model explicitly
 ollama_embedding = OllamaEmbedding(
     model_name="llama3.3:70b",
-    base_url="http://localhost:11434",
+    base_url=OLLAMA_URL,
 )
 
 # Set the embedding model for all indices
@@ -100,119 +101,6 @@ def append_to_file(file_path: str, content: str):
         file.write(content + "\n")
     print(f"Content appended to file at: {file_path}")
 
-async def process_file_for_training_async(file_location: str, user_id: int, repository_id: int):
-    try:
-        # Extract filename and extension
-        filename = os.path.basename(file_location)
-        temp_dir_name, file_extension = os.path.splitext(filename)
-        repo_upload_dir = os.path.dirname(file_location)
-             
-        # Initialize index and vector stores (offload creation if blocking)
-        index_config = {
-            "index_type": "IVF_FLAT",
-            "params": {"nlist": 128}
-        }
-        property_graph_store = NebulaPropertyGraphStore(space=f'space_{user_id}')
-        graph_vec_store = MilvusVectorStore(
-            uri="./milvus_graph.db", 
-            collection_name=f"space_{user_id}",
-            dim=8192, 
-            overwrite=False,         
-            similarity_metric="COSINE",
-            index_config=index_config
-        )
-        graph_index = await asyncio.to_thread(
-            PropertyGraphIndex.from_existing,
-            property_graph_store=property_graph_store,
-            vector_store=graph_vec_store,
-            llm=Settings.llm,
-            embed_model=Settings.embed_model,
-        )
-
-        # Vision model prompt
-        text_con_prompt = (
-            "Please analyze the provided image and generate a detailed, plain-language description of its contents. "
-            "Include key elements such as objects, people, colors, spatial relationships, background details, and any text visible in the image. "
-            "The goal is to create a comprehensive textual representation that fully conveys the visual information to someone who cannot see the image."
-        )
-
-        source_data = await asyncio.to_thread(
-            lambda: SimpleDirectoryReader(input_files=[file_location]).load_data()
-        )
-        print(source_data[0].metadata)
-
-        match file_extension.lower():
-            case '.txt':
-                print("Starting text file processing...")
-                simple_doc = await asyncio.to_thread(
-                    lambda: SimpleDirectoryReader(input_files=[file_location]).load_data()
-                )
-                for doc in simple_doc:
-                    await asyncio.to_thread(graph_index.insert, doc)
-                print(f"{file_location} text file processed successfully.")
-
-            case '.jpg' | '.png' | '.jpeg':
-                # Create a new Ollama client instance for this call
-                txt_response = await asyncio.to_thread(
-                    ollama.chat,
-                    model='llama3.2-vision:90b',
-                    messages=[{
-                        'role': 'user',
-                        'content': text_con_prompt,
-                        'images': [file_location]
-                    }]
-                )
-                print("Text response:", txt_response.message.content)
-                txt_file_location = os.path.join(repo_upload_dir, os.path.splitext(filename)[0] + ".txt")
-                await asyncio.to_thread(
-                    lambda: open(txt_file_location, "w").write(str(txt_response.message.content))
-                )
-                simple_doc = await asyncio.to_thread(
-                    lambda: SimpleDirectoryReader(input_files=[txt_file_location]).load_data()
-                )
-                for doc in simple_doc:
-                    doc.metadata = source_data[0].metadata
-                    await asyncio.to_thread(graph_index.insert, doc)
-
-            case '.pdf':
-                # Process PDF by converting to images
-                pdf_dir = os.path.join(repo_upload_dir, temp_dir_name)
-                os.makedirs(pdf_dir, exist_ok=True)
-                images = await asyncio.to_thread(convert_from_path, file_location)
-                for i, image in enumerate(images):
-                    image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
-                    await asyncio.to_thread(image.save, image_save_path, "PNG")
-                pdf_txt_file = os.path.join(repo_upload_dir, f"{temp_dir_name}.txt")
-                await asyncio.to_thread(lambda: open(pdf_txt_file, "w").write(""))
-                for i, _ in enumerate(images):
-                    image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
-                    txt_response = await asyncio.to_thread(
-                        ollama.chat,
-                        model='llama3.2-vision:90b',
-                        messages=[{
-                            'role': 'user',
-                            'content': text_con_prompt,
-                            'images': [image_save_path]
-                        }]
-                    )
-                    await asyncio.to_thread(
-                        lambda: open(pdf_txt_file, "a").write(
-                            f"--- Response for page {i} ---\n{txt_response.message.content}\n\n"
-                        )
-                    )
-                simple_doc = await asyncio.to_thread(
-                    lambda: SimpleDirectoryReader(input_files=[pdf_txt_file]).load_data()
-                )
-                for doc in simple_doc:
-                    doc.metadata = source_data[0].metadata
-                    await asyncio.to_thread(graph_index.insert, doc)
-
-        print(f"Processing completed for: {file_location}")
-
-    except Exception as e:
-        print(f"Error processing file {file_location}: {str(e)}")
-
-
 @router.post("/{repository_id}/upload/", response_model=FileResponse)
 async def upload_files_to_repository(
     repository_id: int,
@@ -257,22 +145,6 @@ async def upload_files_to_repository(
         db.refresh(file_record)
         uploaded_files.append(FileMetadata.model_validate(file_record))
         
-        # Initialize index and vector stores
-        index_config = {
-            "index_type": "IVF_FLAT",  # Specify the type of index
-            "params": {
-                "nlist": 128          # Index-specific parameter (number of clusters)
-            }
-        }
-
-        graph_vec_store = MilvusVectorStore(
-            uri="./milvus_graph.db", 
-            collection_name=f"space_{current_user.id}",
-            dim=8192, 
-            overwrite=False,         
-            similarity_metric="COSINE",
-            index_config=index_config
-        )
         # Submit file processing task to thread pool
         # file_processor.submit(
         #     process_file_for_training, 

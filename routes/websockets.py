@@ -27,7 +27,7 @@ import prompts
 from databases.database import get_db, User
 from auth import get_current_user, create_access_token, authenticate_user, get_password_hash, get_user_by_phone
 from config.config import ACCESS_TOKEN_EXPIRE_HOURS
-from rag.rag import run_auth_agent, authenticate_agent
+from rag.rag import authenticate_agent
 from rag.llama_handler import LlamaHandler
 from rag.llama_handler import llama_system_prompt
 
@@ -36,16 +36,14 @@ from nebula3.gclient.net import ConnectionPool
 
 from config.config import UPLOAD_DIR
 from routes.files import create_text_file, append_to_file
-from rag.llama_handler import action_agent_prompt
-import ollama
 import datetime
-from routes.files import file_processor, process_file_for_training_async
+from config.config import OLLAMA_URL
 
 Settings.llm = Ollama(
     model="llama3.3:70b",
     temperature=0.3,
     request_timeout=120.0,
-    base_url="http://localhost:11434"
+    base_url=OLLAMA_URL
 )
 
 auth_agent = LlamaHandler(system_prompt=llama_system_prompt)
@@ -144,7 +142,7 @@ async def websocket_auth_dialogue(websocket: WebSocket):
                 # documents = SimpleDirectoryReader("./data/blackrock").load_data()
                 # if os.path('./milvus_demo.db')
                 # vector_store = MilvusVectorStore(
-                #     uri="./milvus_demo.db", 
+                #     uri="http://localhost:19530", 
                 #     dim=1536, 
                 #     overwrite=True, 
                 #     collection_name=f"user_{new_user.id}",
@@ -220,7 +218,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
         space=f'space_{user.id}'
     )
     graph_vec_store = MilvusVectorStore(
-        uri="./milvus_graph.db", 
+        uri="http://localhost:19530", 
         collection_name=f"space_{user.id}",
         dim=8192, 
         overwrite=False,         
@@ -270,11 +268,8 @@ async def websocket_chat(websocket: WebSocket, token: str):
         try:
             with open(file_path, 'a', encoding='utf-8') as file:
                 file.write(input_content + "\n")
-            process_file_for_training_async(
-                file_location=file_path,
-                user_id=user.id,
-                repository_id=1
-            )
+                from celery_worker import process_file_for_training
+                process_file_for_training.delay(file_path, user.id, 1)
         except Exception as e:
             print(f"An error occurred: {e}")
             # Optionally, you could log this error to a file or re-raise it
