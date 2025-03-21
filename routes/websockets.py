@@ -285,28 +285,34 @@ async def websocket_chat(websocket: WebSocket, token: str):
             "Your primary role is to add (save/append) information only when explicitly requested by the user. "
             "Otherwise, do not use any tools.\n\n"
 
-            "When saving data, you must store it in the following format:\n"
-            "[topic]\n"
-            "[info]\n\n"
+            "When saving data, you must:\n"
+            "1. Generate or retrieve the data to be saved.\n"
+            "2. Format it for the 'append_save_to_file' tool function so that the 'content' argument looks like:\n"
+            "   [topic]\n"
+            "   [info]\n\n"
 
             "Saving Operations:\n"
             "1. Direct Save Request\n"
             "   - If the user directly asks to save some content (e.g., 'Please save the following…'), "
             "     use the entire user query as the data to be saved.\n"
             "   - Put that data into the [info] field.\n"
-            "   - Generate a topic based on the user query, and store it in the [topic] field.\n\n"
+            "   - Generate a topic based on the user query, and store it in the [topic] field.\n"
+            "   - Call 'append_save_to_file' tool function with the 'content' parameter as:\n"
+            "       f\"[{topic}]\\n[{info}]\"\n\n"
 
             "2. Retrieval Before Save\n"
             "   - If the user wants to check or retrieve information before saving (e.g., 'Do you know Larry? "
             "     If yes, please save it'), first use 'query_engine_tool' to gather the requested information.\n"
-            "   - Then use 'append_save_to_file' to save it.\n\n"
+            "   - Then generate [topic] and [info] based on the query and the retrieved information.\n"
+            "   - Call 'append_save_to_file' tool function with the 'content' parameter as:\n"
+            "       f\"[{topic}]\\n[{info}]\"\n\n"
 
             "3. Volunteered Information\n"
             "   - If the user provides new factual information but does not explicitly request to save it, "
             "     politely ask if they would like to save it.\n"
             "   - For example, if the user says, 'Michael is a senior software developer and lives in California,' "
             "     respond with something like: 'Do you want to save the info about Michael?'\n"
-            "   - If they confirm, use the steps from 'Direct Save Request' above.\n\n"
+            "   - If they confirm, follow the 'Direct Save Request' steps.\n\n"
 
             "For all other user queries (e.g., general questions without a save request), do not use any tools.\n\n"
 
@@ -315,6 +321,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
         tools=[append_save_to_file, query_engine_tool],
         llm=Settings.llm,
     )
+
 
     query_agent = ReActAgent(
         name="info_lookup",
