@@ -9,11 +9,14 @@ from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.graph_stores.nebula import NebulaPropertyGraphStore
 from pdf2image import convert_from_path
 import ollama
+import nest_asyncio
 from config.config import OLLAMA_URL
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)  # Set your desired log level
+# Apply nest_asyncio to allow nested event loops
+nest_asyncio.apply()
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 # Create a stream handler (console output)
 stream_handler = logging.StreamHandler()
@@ -42,7 +45,25 @@ Settings.embed_model = ollama_embedding
 # Configure Celery with Redis as broker
 celery_app = Celery("worker", broker="redis://localhost:6379/0", backend="redis://localhost:6379/1")
 
-# You can define a synchronous task (or run async code inside a sync function)
+# Create a custom insert function that doesn't use asyncio.run()
+def sync_insert_document(graph_index, document):
+    """Insert a document without using asyncio.run() internally"""
+    # Create nodes from the document
+    nodes = graph_index.node_parser.get_nodes_from_documents([document])
+    
+    # Insert the nodes using a method that doesn't call asyncio.run() internally
+    try:
+        # Use the property graph store directly
+        graph_index._insert_nodes_to_graph_store(nodes)
+        
+        # Add to vector store if available
+        if graph_index._vector_store is not None:
+            graph_index._vector_store.add([node.node_id for node in nodes], 
+                                         [graph_index._embed_model.get_text_embedding(node.get_content()) for node in nodes])
+    except Exception as e:
+        logger.error(f"Error in sync_insert_document: {str(e)}")
+        raise
+
 @celery_app.task
 def process_file_for_training(file_location: str, user_id: int, repository_id: int):
     """
@@ -62,9 +83,9 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
 
         # Initialize index and vector stores
         index_config = {
-            "index_type": "IVF_FLAT",  # Specify the type of index
+            "index_type": "IVF_FLAT",
             "params": {
-                "nlist": 128          # Index-specific parameter (number of clusters)
+                "nlist": 128
             }
         }
 
@@ -81,7 +102,9 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
             property_graph_store=property_graph_store,
             vector_store=graph_vec_store,
             llm=Settings.llm,
+            embed_model=Settings.embed_model,
         )
+        
         # Vision model prompt
         text_con_prompt = """
             Please analyze the provided image and generate a detailed, plain-language description of its contents. 
@@ -90,17 +113,20 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
         """
 
         source_data = SimpleDirectoryReader(input_files=[file_location]).load_data()
-        print(source_data[0].metadata)
+        logger.info(f"Source data metadata: {source_data[0].metadata}")
+        
         # Process based on file type
         match file_extension: 
             case '.txt':
-                print("starting text file processing............")
+                logger.info("Starting text file processing............")
                 simple_doc = SimpleDirectoryReader(input_files=[file_location]).load_data()
-                print("simple doc has been loaded")
-                for doc in simple_doc:
-                    graph_index.insert(doc)
+                logger.info("Simple doc has been loaded")
                 
-                print(f"{file_location} Text file processed successfully")
+                for doc in simple_doc:
+                    # Use our custom insert function instead of graph_index.insert()
+                    sync_insert_document(graph_index, doc)
+                
+                logger.info(f"{file_location} Text file processed successfully")
 
             case '.jpg' | '.png' | '.jpeg':
                 txt_response = ollama.chat(
@@ -111,7 +137,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                         'images': [file_location]
                     }]
                 )
-                print("text response:", txt_response.message.content)
+                logger.info(f"Text response received from vision model")
                 txt_file_location = os.path.join(repo_upload_dir, os.path.splitext(filename)[0] + ".txt")
 
                 with open(txt_file_location, "w") as image_file:
@@ -120,10 +146,9 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                 simple_doc = SimpleDirectoryReader(input_files=[txt_file_location]).load_data()
                 
                 for doc in simple_doc: 
-                    print("meta data inserting...........")
+                    logger.info("Setting metadata and inserting document")
                     doc.metadata = source_data[0].metadata
-                    print("meta data printing....")
-                    graph_index.insert(doc)
+                    sync_insert_document(graph_index, doc)
 
             case '.pdf':
                 # Create a subdirectory to save images (using PDF base name)
@@ -164,9 +189,11 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                 simple_doc = SimpleDirectoryReader(input_files=[pdf_txt_file]).load_data()
                 for doc in simple_doc: 
                     doc.metadata = source_data[0].metadata
-                    graph_index.insert(doc)
-        # print(f"Thread {threading.current_thread().name} - Processing completed for: {file_location}")
+                    sync_insert_document(graph_index, doc)
+
+        logger.info(f"Successfully processed file: {file_location}")
+        return {"status": "success", "file": file_location}
 
     except Exception as e:
-        print(f"Error processing file {file_location}: {str(e)}")
-        raise
+        logger.error(f"Error processing file {file_location}: {str(e)}")
+        raise  # Re-raise the exception so Celery knows the task failed
