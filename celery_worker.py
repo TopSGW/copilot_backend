@@ -51,12 +51,6 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
     """
     logger.info("Starting processing for file: %s", file_location)
     try:
-        # Ensure the current thread has an event loop
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
         # Extract filename and extension
         filename = os.path.basename(file_location)
         temp_dir_name, file_extension = os.path.splitext(filename)
