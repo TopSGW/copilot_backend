@@ -152,7 +152,7 @@ async def upload_files_to_repository(
         #     current_user.id, 
         #     repository_id
         # )
-        result = process_file_for_training.delay(file_location, current_user.id, repository_id, graph_vec_store)
+        result = process_file_for_training.delay(file_location, current_user.id, repository_id)
         print(result)
         result = result.ready()
         print(result)
