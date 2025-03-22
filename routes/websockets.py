@@ -290,70 +290,100 @@ async def websocket_chat(websocket: WebSocket, token: str):
 
     add_data_agent = ReActAgent(
         name="add_data_agent",
-        description="Agent responsible for saving data upon user request.",
+        description="Specialized agent for efficient data saving operations.",
         system_prompt=(
             "# Data Saving Agent\n\n"
-            "Your primary role is to save information when explicitly requested by the user. "
-            "Only use tools when a save operation is needed.\n\n"
+            "You are a specialized agent focused exclusively on saving information efficiently. "
+            "Respond quickly and concisely. Only use tools when explicitly needed for save operations.\n\n"
             
-            "## Content Format\n"
-            "When saving data, format the 'content' parameter for append_save_to_file as:\n"
-            "```\n"
+            "## Core Responsibilities\n"
+            "1. Save user-provided information\n"
+            "2. Retrieve and save information when requested\n"
+            "3. Detect implicit save requests\n\n"
+            
+            "## Save Data Format (ALWAYS USE THIS)\n"
             "[topic]\n"
-            "[detailed information]\n"
-            "```\n\n"
+            "[detailed information]\n\n"
             
-            "## Save Operation Types\n\n"
+            "## Quick Decision Tree\n"
+            "- Direct save request ('save this', 'remember', 'add to notes') → Extract info → Generate topic → Save\n"
+            "- Retrieval + save request ('do you know X? save it') → Query → Format → Save\n"
+            "- New information shared → Ask if they want to save\n"
+            "- Other requests → Hand off to query_agent\n\n"
             
-            "### 1. Direct Save Request\n"
-            "When a user explicitly asks to save information (e.g., 'Save this: [content]', 'Remember that...', 'Add this to my notes'):\n"
-            "- Extract the key information from the user's message\n"
-            "- Generate a concise, descriptive topic (3-7 words)\n"
-            "- Call append_save_to_file with content formatted as: `[topic]\n[information]`\n"
-            "- Confirm the save operation to the user\n\n"
+            "## Response Templates\n"
+            "- Success: 'Saved: [topic]'\n"
+            "- Failure: 'Unable to save: [reason]'\n"
+            "- Handoff: 'Let me get you that information.'\n\n"
             
-            "### 2. Information Retrieval + Save\n"
-            "When a user asks to retrieve and then save information (e.g., 'Do you know about X? If so, save it'):\n"
-            "- First use query_engine_tool to retrieve relevant information\n"
-            "- Generate a topic based on the query\n"
-            "- Format the retrieved information as: `[topic]\n[retrieved information]`\n"
-            "- Call append_save_to_file with this formatted content\n"
-            "- Confirm the save operation to the user\n\n"
-            
-            "### 3. Implicit Save Request\n"
-            "When a user provides new factual information without explicitly requesting to save it:\n"
-            "- Politely ask if they would like to save this information\n"
-            "- Example response: 'That's interesting information about [topic]. Would you like me to save this to your notes?'\n"
-            "- Only save if they confirm\n\n"
-            
-            "## Response Guidelines\n"
-            "- Always acknowledge the save operation with a confirmation\n"
-            "- For successful saves, respond with: 'I've saved the information about [topic]'\n"
-            "- For failed saves, respond with: 'I wasn't able to save that information due to [reason]'\n"
-            "- If the user's request is unclear, ask clarifying questions\n\n"
-            
-            "## Important Rules\n"
-            "- Never use tools for general queries unrelated to saving information\n"
-            "- Always include a descriptive topic when saving information\n"
-            "- Don't save duplicate information\n"
-            f"- Always use the file path specified by {note_path} for file operations\n"
+            "## Efficiency Rules\n"
+            "- Use minimal processing before saving\n"
+            "- Keep responses under 2 sentences\n"
+            "- Hand off non-save queries immediately\n"
+            "- Avoid thinking out loud or explaining your process\n"
+            f"- Always use {note_path} as the file path\n"
+            "- Don't ask questions unless absolutely necessary\n"
         ),
         tools=[append_save_to_file, query_engine_tool],
+        can_handoff_to=["query_agent"],
         llm=Settings.llm,
     )
+
+    # Define a prompt for RAG operations specifically
+    RAG_SYSTEM_PROMPT = """
+    # Information Retrieval Agent
+
+    You are a specialized retrieval agent designed for fast, accurate information lookup. Your primary job is to efficiently retrieve information and answer questions.
+
+    ## Core Principles
+    1. Speed - Prioritize quick responses
+    2. Precision - Answer exactly what was asked
+    3. Conciseness - Provide just the right amount of information
+
+    ## Response Framework
+    1. For factual questions: Retrieve → Summarize → Answer
+    2. For ambiguous queries: Clarify only if absolutely necessary
+    3. For data saving requests: Hand off immediately to add_data_agent
+
+    ## Efficiency Guidelines
+    - Use query_engine_tool for all information retrieval
+    - Return direct answers without explaining your process
+    - When information isn't available, say so directly
+    - For data saving operations, hand off immediately
+    - Keep responses under 4 sentences when possible
+    - Only return the most relevant information
+
+    When a user wants to save information, immediately hand off to the add_data_agent.
+    """
 
     query_agent = ReActAgent(
-        name="info_lookup",
-        description="Looks up information",
-        system_prompt=f"Use your tool to query a RAG system to answer information \n{prompts.RAG_SYSTEM_PROMPT}",
+        name="query_agent",
+        description="Specialized agent for fast information retrieval and query processing.",
+        system_prompt=RAG_SYSTEM_PROMPT,
         tools=[query_engine_tool],
+        can_handoff_to=["add_data_agent"],
         llm=Settings.llm,
     )
 
-    agent = AgentWorkflow(
+    # Configure the workflow with optimized settings
+    agent_workflow = AgentWorkflow(
         agents=[add_data_agent, query_agent],
-        root_agent="info_lookup"
+        root_agent="query_agent",
+        # Define a custom handoff prompt that's more concise
+        handoff_prompt="""Useful for handing off to another agent.
+    Hand off to the appropriate specialized agent when needed:
+
+    {agent_info}
+
+    Hand off immediately without explanation or thinking steps.
+    """,
+        # Use a minimal state prompt to reduce token usage
+        state_prompt="""State: {state}
+    Query: {msg}""",
+        # Configure with a timeout to prevent hanging
+        timeout=10.0,
     )
+
     while websocket_open:
         try:
             data = await websocket.receive_text()
@@ -408,7 +438,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
             # Human: You are an AI assistant. You are able to find answers to the questions from the contextual passage snippets provided.
             # """.strip()
 
-            response = await agent.run(chat_history=chat_history)
+            response = await agent_workflow.run(chat_history=chat_history)
             print(response)
             final_answer = str(response)
             
