@@ -373,7 +373,8 @@ async def websocket_chat(websocket: WebSocket, token: str):
         handoff_prompt="""Useful for handing off to another agent.
     Hand off to the appropriate specialized agent when needed:
 
-    {agent_info}
+    - add_data_agent: {add_data_agent}
+    - query_agent: {query_agent}
 
     Hand off immediately without explanation or thinking steps.
     """,
