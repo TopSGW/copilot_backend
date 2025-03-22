@@ -381,7 +381,6 @@ async def websocket_chat(websocket: WebSocket, token: str):
         state_prompt="""State: {state}
     Query: {msg}""",
         # Configure with a timeout to prevent hanging
-        timeout=10.0,
     )
 
     while websocket_open:
