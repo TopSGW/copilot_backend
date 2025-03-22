@@ -261,67 +261,86 @@ async def websocket_chat(websocket: WebSocket, token: str):
         """
         Appends the provided content to the file at file_path.
         If the file does not exist, it will be created automatically.
+        
+        Args:
+            file_path: Path to the file where content should be appended
+            content: The formatted string to append to the file
+        
+        Returns:
+            None
         """
-        print("note text training start......")
+        print("Note text training started...")
         time_content = datetime.datetime.now()
-        input_content = "[" + str(time_content) + "]" + "\n" + content
+        input_content = f"[{time_content}]\n{content}"
         print(f">>>>>>>>content<<<<<<< {input_content}")
+        
         try:
             with open(file_path, 'a', encoding='utf-8') as file:
                 file.write(input_content + "\n")
-
-                process_file_for_training.delay(file_path, user.id, 1)
                 
+            # Process the file asynchronously
+            process_file_for_training.delay(file_path, user.id, 1)
+                    
         except Exception as e:
             print(f"An error occurred: {e}")
-            # Optionally, you could log this error to a file or re-raise it
+            return {"status": "error", "message": f"Failed to save: {str(e)}"}
         else:
             print(f"Content appended to file at: {file_path}")
+            return {"status": "success", "message": "Content saved successfully"}
 
     add_data_agent = ReActAgent(
         name="add_data_agent",
         description="Agent responsible for saving data upon user request.",
         system_prompt=(
-            "Your primary role is to add (save/append) information only when explicitly requested by the user. "
-            "Otherwise, do not use any tools.\n\n"
-
-            "When saving data, you must:\n"
-            "1. Generate or retrieve the data to be saved.\n"
-            "2. Format it for the 'append_save_to_file' tool function so that the 'content' argument looks like:\n"
-            "   [topic]\n"
-            "   [info]\n\n"
-
-            "Saving Operations:\n"
-            "1. Direct Save Request\n"
-            "   - If the user directly asks to save some content (e.g., 'Please save the following…'), "
-            "     use the entire user query as the data to be saved.\n"
-            "   - Put that data into the [info] field.\n"
-            "   - Generate a topic based on the user query, and store it in the [topic] field.\n"
-            "   - Call 'append_save_to_file' tool function with the 'content' parameter as:\n"
-            "       f\"[{topic}]\\n[{info}]\"\n\n"
-
-            "2. Retrieval Before Save\n"
-            "   - If the user wants to check or retrieve information before saving (e.g., 'Do you know Larry? "
-            "     If yes, please save it'), first use 'query_engine_tool' to gather the requested information.\n"
-            "   - Then generate [topic] and [info] based on the query and the retrieved information.\n"
-            "   - Call 'append_save_to_file' tool function with the 'content' parameter as:\n"
-            "       f\"[{topic}]\\n[{info}]\"\n\n"
-
-            "3. Volunteered Information\n"
-            "   - If the user provides new factual information but does not explicitly request to save it, "
-            "     politely ask if they would like to save it.\n"
-            "   - For example, if the user says, 'Michael is a senior software developer and lives in California,' "
-            "     respond with something like: 'Do you want to save the info about Michael?'\n"
-            "   - If they confirm, follow the 'Direct Save Request' steps.\n\n"
-
-            "For all other user queries (e.g., general questions without a save request), do not use any tools.\n\n"
-
-            f"Always use the file path specified by {note_path} for file operations."
+            "# Data Saving Agent\n\n"
+            "Your primary role is to save information when explicitly requested by the user. "
+            "Only use tools when a save operation is needed.\n\n"
+            
+            "## Content Format\n"
+            "When saving data, format the 'content' parameter for append_save_to_file as:\n"
+            "```\n"
+            "[topic]\n"
+            "[detailed information]\n"
+            "```\n\n"
+            
+            "## Save Operation Types\n\n"
+            
+            "### 1. Direct Save Request\n"
+            "When a user explicitly asks to save information (e.g., 'Save this: [content]', 'Remember that...', 'Add this to my notes'):\n"
+            "- Extract the key information from the user's message\n"
+            "- Generate a concise, descriptive topic (3-7 words)\n"
+            "- Call append_save_to_file with content formatted as: `[topic]\n[information]`\n"
+            "- Confirm the save operation to the user\n\n"
+            
+            "### 2. Information Retrieval + Save\n"
+            "When a user asks to retrieve and then save information (e.g., 'Do you know about X? If so, save it'):\n"
+            "- First use query_engine_tool to retrieve relevant information\n"
+            "- Generate a topic based on the query\n"
+            "- Format the retrieved information as: `[topic]\n[retrieved information]`\n"
+            "- Call append_save_to_file with this formatted content\n"
+            "- Confirm the save operation to the user\n\n"
+            
+            "### 3. Implicit Save Request\n"
+            "When a user provides new factual information without explicitly requesting to save it:\n"
+            "- Politely ask if they would like to save this information\n"
+            "- Example response: 'That's interesting information about [topic]. Would you like me to save this to your notes?'\n"
+            "- Only save if they confirm\n\n"
+            
+            "## Response Guidelines\n"
+            "- Always acknowledge the save operation with a confirmation\n"
+            "- For successful saves, respond with: 'I've saved the information about [topic]'\n"
+            "- For failed saves, respond with: 'I wasn't able to save that information due to [reason]'\n"
+            "- If the user's request is unclear, ask clarifying questions\n\n"
+            
+            "## Important Rules\n"
+            "- Never use tools for general queries unrelated to saving information\n"
+            "- Always include a descriptive topic when saving information\n"
+            "- Don't save duplicate information\n"
+            f"- Always use the file path specified by {note_path} for file operations\n"
         ),
         tools=[append_save_to_file, query_engine_tool],
         llm=Settings.llm,
     )
-
 
     query_agent = ReActAgent(
         name="info_lookup",
