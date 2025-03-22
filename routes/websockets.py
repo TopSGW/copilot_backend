@@ -359,7 +359,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     query_agent = ReActAgent(
         name="query_agent",
         description="Specialized agent for fast information retrieval and query processing.",
-        system_prompt=RAG_SYSTEM_PROMPT,
+        system_prompt=prompts.RAG_SYSTEM_PROMPT,
         tools=[query_engine_tool],
         can_handoff_to=["add_data_agent"],
         llm=Settings.llm,
@@ -368,7 +368,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     # Configure the workflow with optimized settings
     agent_workflow = AgentWorkflow(
         agents=[add_data_agent, query_agent],
-        root_agent="query_agent",
+        root_agent="add_data_agent",
         # Define a custom handoff prompt that's more concise
         handoff_prompt="""Useful for handing off to another agent.
     Hand off to the appropriate specialized agent when needed:
