@@ -79,7 +79,7 @@ def process_image_with_ollama(image_path, prompt, ollama_url):
         f"{ollama_url}/api/chat",
         headers=headers,
         data=json.dumps(payload),
-        timeout=120
+        timeout=300
     )
     
     # Check if the request was successful
@@ -246,7 +246,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                             f.write(f"--- Response for page {i} ---\n")
                             f.write(txt_response)
                             f.write("\n\n")
-                    
+                        logger.info(f"Text response received from vision model for page {i} {txt_response}")
                     # Load the combined text file for indexing
                     simple_doc = SimpleDirectoryReader(input_files=[pdf_txt_file]).load_data()
                     for doc in simple_doc: 
