@@ -56,28 +56,6 @@ def get_base64_encoded_image(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode('utf-8')
 
-def safe_parse_json(response):
-    """
-    Try to parse the response as JSON.
-    If extra data is detected, attempt to extract the first valid JSON object.
-    """
-    text = response.text.strip()
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError as e:
-        # For debugging: print the raw response
-        print("Failed to parse JSON. Raw response:")
-        print(text)
-        # Attempt to parse only the first JSON object if multiple are present.
-        # This simple approach splits by newline and tries to parse the first line.
-        parts = text.splitlines()
-        for part in parts:
-            try:
-                return json.loads(part)
-            except json.JSONDecodeError:
-                continue
-        raise e
-
 def process_image_with_ollama(image_path, prompt, ollama_url):
     """Process an image using Ollama API directly via HTTP"""
     base64_image = get_base64_encoded_image(image_path)
@@ -91,7 +69,8 @@ def process_image_with_ollama(image_path, prompt, ollama_url):
                 "content": prompt,
                 "images": [ base64_image ],
             }
-        ]
+        ],
+        "stream": False
     }
     
     # Make the API call
@@ -107,7 +86,7 @@ def process_image_with_ollama(image_path, prompt, ollama_url):
     if response.status_code == 200:
         try:
             logger.info(f"Ollama API response: {response.text}")
-            result = json.load(response)
+            result = json.load(response.text)
             return result["message"]["content"]
         except (json.JSONDecodeError, KeyError) as e:
             raise Exception(f"Error parsing response JSON: {e}\nRaw response: {response.text}")
