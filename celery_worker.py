@@ -106,7 +106,8 @@ def process_image_with_ollama(image_path, prompt, ollama_url):
     # Check if the request was successful
     if response.status_code == 200:
         try:
-            result = response.json()
+            logger.info(f"Ollama API response: {response}")
+            result = json.load(response.text)
             return result["message"]["content"]
         except (json.JSONDecodeError, KeyError) as e:
             raise Exception(f"Error parsing response JSON: {e}\nRaw response: {response.text}")
