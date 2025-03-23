@@ -199,9 +199,11 @@ async def delete_file(
     if not repository:
         raise HTTPException(status_code=404, detail="Repository not found")
 
+    real_file_name = os.path.basename(filename)
+
     file_record = db.query(FileRecord).filter(
         FileRecord.repository_id == repository_id,
-        FileRecord.filename == filename
+        FileRecord.filename == real_file_name
     ).first()
     if not file_record:
         raise HTTPException(status_code=404, detail="File not found")
