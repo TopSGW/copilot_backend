@@ -207,6 +207,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                         OLLAMA_URL
                     )
                     logger.info(f"Text response received from vision model")
+                    logger.info(f"text response {txt_response}")
                     txt_file_location = os.path.join(repo_upload_dir, os.path.splitext(filename)[0] + ".txt")
 
                     with open(txt_file_location, "w") as image_file:
