@@ -56,6 +56,28 @@ def get_base64_encoded_image(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode('utf-8')
 
+def safe_parse_json(response):
+    """
+    Try to parse the response as JSON.
+    If extra data is detected, attempt to extract the first valid JSON object.
+    """
+    text = response.text.strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        # For debugging: print the raw response
+        print("Failed to parse JSON. Raw response:")
+        print(text)
+        # Attempt to parse only the first JSON object if multiple are present.
+        # This simple approach splits by newline and tries to parse the first line.
+        parts = text.splitlines()
+        for part in parts:
+            try:
+                return json.loads(part)
+            except json.JSONDecodeError:
+                continue
+        raise e
+
 def process_image_with_ollama(image_path, prompt, ollama_url):
     """Process an image using Ollama API directly via HTTP"""
     base64_image = get_base64_encoded_image(image_path)
@@ -83,10 +105,14 @@ def process_image_with_ollama(image_path, prompt, ollama_url):
     
     # Check if the request was successful
     if response.status_code == 200:
-        result = response.json()
-        return result['message']['content']
+        try:
+            result = safe_parse_json(response)
+            return result["message"]["content"]
+        except (json.JSONDecodeError, KeyError) as e:
+            raise Exception(f"Error parsing response JSON: {e}\nRaw response: {response.text}")
     else:
         raise Exception(f"Ollama API call failed with status code {response.status_code}: {response.text}")
+
 
 @celery_app.task
 def process_file_for_training(file_location: str, user_id: int, repository_id: int):
@@ -184,7 +210,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                     txt_file_location = os.path.join(repo_upload_dir, os.path.splitext(filename)[0] + ".txt")
 
                     with open(txt_file_location, "w") as image_file:
-                        image_file.write(str(txt_response.message.content))
+                        image_file.write(str(txt_response))
 
                     simple_doc = SimpleDirectoryReader(input_files=[txt_file_location]).load_data()
                     
@@ -237,7 +263,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                         
                         with open(pdf_txt_file, "a") as f:
                             f.write(f"--- Response for page {i} ---\n")
-                            f.write(txt_response.message.content)
+                            f.write(txt_response)
                             f.write("\n\n")
                     
                     # Load the combined text file for indexing
