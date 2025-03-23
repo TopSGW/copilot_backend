@@ -10,6 +10,9 @@ from llama_index.graph_stores.nebula import NebulaPropertyGraphStore
 from pdf2image import convert_from_path
 import ollama
 from config.config import OLLAMA_URL
+import requests
+import json
+import base64
 
 import nest_asyncio
 nest_asyncio.apply()
@@ -47,6 +50,43 @@ celery_app = Celery("worker", broker="redis://localhost:6379/0", backend="redis:
 
 # Initialize a node parser for document processing
 node_parser = SimpleNodeParser.from_defaults()
+
+def get_base64_encoded_image(image_path):
+    """Convert an image to base64 encoding for API requests"""
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')
+
+def process_image_with_ollama(image_path, prompt, ollama_url):
+    """Process an image using Ollama API directly via HTTP"""
+    base64_image = get_base64_encoded_image(image_path)
+    
+    # Prepare the request payload
+    payload = {
+        "model": "llama3.2-vision:90b",
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt,
+                "images": [ base64_image ],
+            }
+        ]
+    }
+    
+    # Make the API call
+    headers = {"Content-Type": "application/json"}
+    response = requests.post(
+        f"{ollama_url}/api/chat",
+        headers=headers,
+        data=json.dumps(payload),
+        timeout=120
+    )
+    
+    # Check if the request was successful
+    if response.status_code == 200:
+        result = response.json()
+        return result['message']['content']
+    else:
+        raise Exception(f"Ollama API call failed with status code {response.status_code}: {response.text}")
 
 @celery_app.task
 def process_file_for_training(file_location: str, user_id: int, repository_id: int):
@@ -135,13 +175,10 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                     logger.info(f"{file_location} Text file processed successfully")
 
                 case '.jpg' | '.png' | '.jpeg':
-                    txt_response = ollama.chat(
-                        model='llama3.2-vision:90b',
-                        messages=[{
-                            'role': 'user',
-                            'content': text_con_prompt,
-                            'images': [file_location]
-                        }]
+                    txt_response = process_image_with_ollama(
+                        file_location, 
+                        text_con_prompt,
+                        OLLAMA_URL
                     )
                     logger.info(f"Text response received from vision model")
                     txt_file_location = os.path.join(repo_upload_dir, os.path.splitext(filename)[0] + ".txt")
@@ -192,13 +229,10 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                     for i, _ in enumerate(images):
                         image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
                         
-                        txt_response = ollama.chat(
-                            model='llama3.2-vision:90b',
-                            messages=[{
-                                'role': 'user',
-                                'content': text_con_prompt,
-                                'images': [image_save_path]
-                            }]
+                        txt_response = process_image_with_ollama(
+                            image_save_path, 
+                            text_con_prompt,
+                            OLLAMA_URL
                         )
                         
                         with open(pdf_txt_file, "a") as f:
