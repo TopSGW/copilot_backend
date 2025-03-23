@@ -9,11 +9,8 @@ from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.graph_stores.nebula import NebulaPropertyGraphStore
 from pdf2image import convert_from_path
 import ollama
-import nest_asyncio
 from config.config import OLLAMA_URL
 
-# Apply nest_asyncio to allow nested event loops
-nest_asyncio.apply()
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
