@@ -136,7 +136,7 @@ async def websocket_auth_dialogue(websocket: WebSocket):
                     expires_delta=token_expires
                 )
                 msg_response = await authenticate_agent.on_messages(
-                    [TextMessage(content="Sign up successful!", source="auth_agent")],
+                    [TextMessage(content="Sign up successful! You can start query based on your own data If you did not the data, please upload the data now.", source="auth_agent")],
                     cancellation_token=CancellationToken(),
                 )
                 # documents = SimpleDirectoryReader("./data/blackrock").load_data()

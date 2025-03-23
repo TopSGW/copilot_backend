@@ -1,5 +1,7 @@
 import asyncio
 import uvloop
+import nest_asyncio
+nest_asyncio.apply()
 
 from fastapi import FastAPI, WebSocket, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware

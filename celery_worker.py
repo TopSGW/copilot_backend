@@ -11,6 +11,8 @@ from pdf2image import convert_from_path
 import ollama
 from config.config import OLLAMA_URL
 
+import nest_asyncio
+nest_asyncio.apply()
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
