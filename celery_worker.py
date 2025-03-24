@@ -3,6 +3,7 @@ import os
 import logging
 from llama_index.core import SimpleDirectoryReader, PropertyGraphIndex, Settings
 from llama_index.core.node_parser import SimpleNodeParser
+from llama_index.core.schema import TextNode
 from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.llms.ollama import Ollama
 from llama_index.embeddings.ollama import OllamaEmbedding
@@ -15,6 +16,7 @@ import json
 import base64
 import nest_asyncio
 nest_asyncio.apply()
+import time
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -92,6 +94,20 @@ def process_image_with_ollama(image_path, prompt, ollama_url):
     else:
         raise Exception(f"Ollama API call failed with status code {response.status_code}: {response.text}")
 
+def clean_metadata(metadata, page_number=None):
+    """
+    Clean and prepare metadata for graph insertion
+    """
+    cleaned_metadata = {
+        'file_name': metadata.get('file_name', 'Unknown'),
+        'file_path': metadata.get('file_path', 'Unknown'),
+        'file_type': metadata.get('file_type', 'Unknown'),
+        'file_size': metadata.get('file_size', 0),
+        'page_number': page_number or 0,
+        'creation_date': metadata.get('creation_date', time.strftime('%Y-%m-%d')),
+        'last_modified_date': metadata.get('last_modified_date', time.strftime('%Y-%m-%d')),
+    }
+    return cleaned_metadata
 
 @celery_app.task
 def process_file_for_training(file_location: str, user_id: int, repository_id: int):
@@ -219,50 +235,48 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                     pdf_dir = os.path.join(repo_upload_dir, temp_dir_name)
                     os.makedirs(pdf_dir, exist_ok=True)
                     images = convert_from_path(file_location)
-                    
+
                     # Save all images in the subdirectory
                     for i, image in enumerate(images):
                         image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
                         image.save(image_save_path, "PNG")
 
-                    # Process each page and append its response to the combined text file
-                    for i, _ in enumerate(images):
+                    for i, image in enumerate(images):
                         image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
-                        
                         txt_response = process_image_with_ollama(
                             image_save_path, 
                             text_con_prompt,
                             OLLAMA_URL
                         )
-                        txt_file_location = image_save_path.replace(".png", ".txt")
-
-                        with open(txt_file_location, "w") as f:
-                            f.write(str(txt_response))
-
-                        logger.info(f"Text response received from vision model for page {i} {txt_response}")
-                        # Load the combined text file for indexing
-                        simple_doc = SimpleDirectoryReader(input_files=[txt_file_location]).load_data()
-                        for doc in simple_doc: 
-                            doc.metadata = source_data[0].metadata
+                        
+                        # Create specialized metadata with page number
+                        page_metadata = clean_metadata(
+                            source_data[0].metadata, 
+                            page_number=i+1
+                        )
+                        
+                        # Create document with cleaned metadata
+                        doc = TextNode(
+                            text=txt_response,
+                            metadata=page_metadata
+                        )
+                        
+                        # Robust insertion with retry
+                        max_retries = 3
+                        for attempt in range(max_retries):
                             try:
-                                import time
-                                time.sleep(10)
                                 graph_index.insert(doc)
-                            except RuntimeError as e:
-                                if "Event loop is closed" in str(e):
-                                    logger.warning(f"Event loop error occurred, continuing: {str(e)}")
-                                    import time
-                                    time.sleep(1)
-                                    graph_index = PropertyGraphIndex.from_existing(
-                                        property_graph_store=property_graph_store,
-                                        vector_store=graph_vec_store,
-                                        llm=Settings.llm,
-                                        embed_model=Settings.embed_model,
-                                    )
-                                    graph_index.insert(doc)
+                                break
+                            except Exception as insert_error:
+                                logger.warning(f"Insertion attempt {attempt + 1} failed: {str(insert_error)}")
+                                if attempt < max_retries - 1:
+                                    time.sleep(2 ** attempt)  # Exponential backoff
                                 else:
+                                    logger.error(f"Failed to insert document after {max_retries} attempts")
                                     raise
-                                
+
+                    return {"status": "success", "file": file_location}
+                               
         except Exception as e:
             logger.error(f"Error in file processing: {str(e)}")
             raise
