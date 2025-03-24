@@ -13,7 +13,6 @@ from config.config import OLLAMA_URL
 import requests
 import json
 import base64
-
 import nest_asyncio
 nest_asyncio.apply()
 
@@ -246,6 +245,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                         for doc in simple_doc: 
                             doc.metadata = source_data[0].metadata
                             try:
+                                import time
                                 time.sleep(10)
                                 graph_index.insert(doc)
                             except RuntimeError as e:
