@@ -270,6 +270,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                             except Exception as insert_error:
                                 logger.warning(f"Insertion attempt {attempt + 1} failed: {str(insert_error)}")
                                 if attempt < max_retries - 1:
+                                    import time
                                     time.sleep(2 ** attempt)  # Exponential backoff
                                 else:
                                     logger.error(f"Failed to insert document after {max_retries} attempts")
