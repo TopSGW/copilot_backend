@@ -94,21 +94,6 @@ def process_image_with_ollama(image_path, prompt, ollama_url):
     else:
         raise Exception(f"Ollama API call failed with status code {response.status_code}: {response.text}")
 
-def clean_metadata(metadata, page_number=None):
-    """
-    Clean and prepare metadata for graph insertion
-    """
-    cleaned_metadata = {
-        'file_name': metadata.get('file_name', 'Unknown'),
-        'file_path': metadata.get('file_path', 'Unknown'),
-        'file_type': metadata.get('file_type', 'Unknown'),
-        'file_size': metadata.get('file_size', 0),
-        'page_number': page_number or 0,
-        'creation_date': metadata.get('creation_date', time.strftime('%Y-%m-%d')),
-        'last_modified_date': metadata.get('last_modified_date', time.strftime('%Y-%m-%d')),
-    }
-    return cleaned_metadata
-
 @celery_app.task
 def process_file_for_training(file_location: str, user_id: int, repository_id: int):
     """
@@ -249,16 +234,11 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                             OLLAMA_URL
                         )
                         
-                        # Create specialized metadata with page number
-                        page_metadata = clean_metadata(
-                            source_data[0].metadata, 
-                            page_number=i+1
-                        )
                         
                         # Create document with cleaned metadata
                         doc = TextNode(
                             text=txt_response,
-                            metadata=page_metadata
+                            metadata=source_data[0].metadata
                         )
                         
                         # Robust insertion with retry
