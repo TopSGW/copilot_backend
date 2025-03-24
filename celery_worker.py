@@ -1,7 +1,7 @@
 from celery import Celery
 import os
 import logging
-from llama_index.core import SimpleDirectoryReader, PropertyGraphIndex, Settings
+from llama_index.core import SimpleDirectoryReader, PropertyGraphIndex, Settings, Document
 from llama_index.core.node_parser import SimpleNodeParser
 from llama_index.core.schema import TextNode
 from llama_index.vector_stores.milvus import MilvusVectorStore
@@ -269,13 +269,10 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                             OLLAMA_URL
                         )
                         
-                        
-                        # Create document with cleaned metadata
-                        doc = CustomTextNode(
+                        doc = Document(
                             text=txt_response,
                             metadata=source_data[0].metadata
                         )
-                        
                         # Robust insertion with retry
                         max_retries = 3
                         for attempt in range(max_retries):
