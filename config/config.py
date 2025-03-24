@@ -29,5 +29,6 @@ props_schema = """
     `_node_type` STRING,
     `document_id` STRING,
     `doc_id` STRING,
-    `ref_doc_id` STRING
+    `ref_doc_id` STRING,
+    `triplet_source_id` STRING
 """
