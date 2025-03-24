@@ -3,7 +3,7 @@ import os
 import logging
 from llama_index.core import SimpleDirectoryReader, PropertyGraphIndex, Settings
 from llama_index.core.node_parser import SimpleNodeParser
-from llama_index.core.schema import TextNode
+from llama_index.core.schema import TextNode as BaseTextNode
 from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.llms.ollama import Ollama
 from llama_index.embeddings.ollama import OllamaEmbedding
@@ -17,6 +17,7 @@ import base64
 import nest_asyncio
 nest_asyncio.apply()
 import time
+import uuid
 from config.config import props_schema
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,20 @@ formatter = logging.Formatter(
 stream_handler.setFormatter(formatter)
 logger.addHandler(stream_handler)
 
+
+class CustomTextNode(BaseTextNode):
+    def __init__(self, text, metadata=None):
+        # Call the parent constructor
+        super().__init__(text, metadata)
+        # Ensure metadata is a dictionary
+        if self.metadata is None:
+            self.metadata = {}
+        # If 'doc_id' is not provided in metadata, generate one
+        if "doc_id" not in self.metadata:
+            self.metadata["doc_id"] = str(uuid.uuid4())
+
+    def get_doc_id(self):
+        return self.metadata["doc_id"]
 # Initialize the LLM
 Settings.llm = Ollama(
     model="llama3.3:70b",
@@ -238,7 +253,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                         
                         
                         # Create document with cleaned metadata
-                        doc = TextNode(
+                        doc = CustomTextNode(
                             text=txt_response,
                             metadata=source_data[0].metadata
                         )
