@@ -108,7 +108,8 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
         repo_upload_dir = os.path.dirname(file_location)
              
         property_graph_store = NebulaPropertyGraphStore(
-            space=f'space_{user_id}'
+            space=f'space_{user_id}',
+            props_schema="`page_label` STRING, `file_path` STRING, `file_name` STRING, `file_type` STRING, `file_size` INT, `creation_date` STRING, `last_modified_date` STRING, `_node_content` STRING, `_node_type` STRING, `document_id` STRING, `doc_id` STRING, `ref_doc_id` STRING"
         )
 
         # Initialize index and vector stores
