@@ -226,12 +226,6 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                         image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
                         image.save(image_save_path, "PNG")
 
-                    # Define the combined text file with the same base name as the PDF file
-                    pdf_txt_file = os.path.join(repo_upload_dir, f"{temp_dir_name}.txt")
-                    # Clear any existing content (or create new)
-                    with open(pdf_txt_file, "w") as f:
-                        f.write("")
-
                     # Process each page and append its response to the combined text file
                     for i, _ in enumerate(images):
                         image_save_path = os.path.join(pdf_dir, f"page_{i}.png")
@@ -241,32 +235,32 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                             text_con_prompt,
                             OLLAMA_URL
                         )
-                        
-                        with open(pdf_txt_file, "a") as f:
-                            f.write(f"--- Response for page {i} ---\n")
-                            f.write(txt_response)
-                            f.write("\n\n")
+                        txt_file_location = image_save_path.replace(".png", ".txt")
+
+                        with open(txt_file_location, "w") as f:
+                            f.write(str(txt_response))
+
                         logger.info(f"Text response received from vision model for page {i} {txt_response}")
-                    # Load the combined text file for indexing
-                    simple_doc = SimpleDirectoryReader(input_files=[pdf_txt_file]).load_data()
-                    for doc in simple_doc: 
-                        doc.metadata = source_data[0].metadata
-                        try:
-                            graph_index.insert(doc)
-                        except RuntimeError as e:
-                            if "Event loop is closed" in str(e):
-                                logger.warning(f"Event loop error occurred, continuing: {str(e)}")
-                                import time
-                                time.sleep(1)
-                                graph_index = PropertyGraphIndex.from_existing(
-                                    property_graph_store=property_graph_store,
-                                    vector_store=graph_vec_store,
-                                    llm=Settings.llm,
-                                    embed_model=Settings.embed_model,
-                                )
+                        # Load the combined text file for indexing
+                        simple_doc = SimpleDirectoryReader(input_files=[txt_file_location]).load_data()
+                        for doc in simple_doc: 
+                            doc.metadata = source_data[0].metadata
+                            try:
                                 graph_index.insert(doc)
-                            else:
-                                raise
+                            except RuntimeError as e:
+                                if "Event loop is closed" in str(e):
+                                    logger.warning(f"Event loop error occurred, continuing: {str(e)}")
+                                    import time
+                                    time.sleep(1)
+                                    graph_index = PropertyGraphIndex.from_existing(
+                                        property_graph_store=property_graph_store,
+                                        vector_store=graph_vec_store,
+                                        llm=Settings.llm,
+                                        embed_model=Settings.embed_model,
+                                    )
+                                    graph_index.insert(doc)
+                                else:
+                                    raise
                                 
         except Exception as e:
             logger.error(f"Error in file processing: {str(e)}")
