@@ -237,14 +237,13 @@ async def websocket_chat(websocket: WebSocket, token: str):
     query_engine_tool = QueryEngineTool.from_defaults(
         query_engine=query_engine,
         name="name",
-        description="a specific description",
+        description="Query graph database based on user query",
         return_direct=False
     )
     graph_chat_engine = graph_index.as_chat_engine(
         chat_mode='context',
         llm=Settings.llm,
         system_prompt=prompts.RAG_SYSTEM_PROMPT,
-        memory=memory
     )
     # milvus_manager = MilvusManager(
     #     milvus_uri="./milvus_original.db",
@@ -445,6 +444,24 @@ async def websocket_chat(websocket: WebSocket, token: str):
             end_time = datetime.datetime.now()
             print("Main function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
             print("Total duration:", end_time - start_time)
+
+
+            start_time = datetime.datetime.now()
+            print("Graph chat engine function started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
+
+            if chat_history:
+                last_message = messages[-1]
+                print("Last message:", last_message)
+            else:
+                print("No messages in chat_history")
+            rest_messages = chat_history[:-1]
+            graph_chat_answer = await graph_chat_engine.achat(message=last_message.get("content"), chat_history=rest_messages)
+            print("Graph chat answer:", str(graph_chat_answer.response))
+
+            end_time = datetime.datetime.now()
+            print("Graph chat engine function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
+            print("Total duration:", end_time - start_time)
+
             # Build the user prompt by combining vector_answer and graph_response into the <context> block,
             # and including the user_input within the <question> block.
             # USER_PROMPT = f"""
