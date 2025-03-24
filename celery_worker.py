@@ -17,6 +17,7 @@ import base64
 import nest_asyncio
 nest_asyncio.apply()
 import time
+from config.config import props_schema
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -109,7 +110,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
              
         property_graph_store = NebulaPropertyGraphStore(
             space=f'space_{user_id}',
-            props_schema="`page_label` STRING, `file_path` STRING, `file_name` STRING, `file_type` STRING, `file_size` INT, `creation_date` STRING, `last_modified_date` STRING, `_node_content` STRING, `_node_type` STRING, `document_id` STRING, `doc_id` STRING, `ref_doc_id` STRING"
+            props_schema=props_schema,
         )
 
         # Initialize index and vector stores
@@ -253,6 +254,12 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                                 if attempt < max_retries - 1:
                                     import time
                                     time.sleep(2 ** attempt)  # Exponential backoff
+                                    graph_index = PropertyGraphIndex.from_existing(
+                                        property_graph_store=property_graph_store,
+                                        vector_store=graph_vec_store,
+                                        llm=Settings.llm,
+                                        embed_model=Settings.embed_model,
+                                    )
                                 else:
                                     logger.error(f"Failed to insert document after {max_retries} attempts")
                                     raise

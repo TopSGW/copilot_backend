@@ -37,7 +37,7 @@ from nebula3.gclient.net import ConnectionPool
 from config.config import UPLOAD_DIR
 from routes.files import create_text_file, append_to_file
 import datetime
-from config.config import OLLAMA_URL
+from config.config import OLLAMA_URL, props_schema
 
 Settings.llm = Ollama(
     model="llama3.3:70b",
@@ -215,7 +215,8 @@ async def websocket_chat(websocket: WebSocket, token: str):
     memory = ChatMemoryBuffer.from_defaults(token_limit=1500)
 
     property_graph_store = NebulaPropertyGraphStore(
-        space=f'space_{user.id}'
+        space=f'space_{user.id}',
+        props_schema=props_schema
     )
     graph_vec_store = MilvusVectorStore(
         uri="http://localhost:19530", 

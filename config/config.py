@@ -16,3 +16,18 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 OLLAMA_URL = "http://157.157.221.29:20786"
 os.environ['OLLAMA_HOST'] = OLLAMA_URL
+
+props_schema = """
+    `page_label` STRING,
+    `file_name` STRING,
+    `file_path` STRING,
+    `file_type` STRING,
+    `file_size` INT,
+    `creation_date` STRING,
+    `last_modified_date` STRING,
+    `_node_content` STRING,
+    `_node_type` STRING,
+    `document_id` STRING,
+    `doc_id` STRING,
+    `ref_doc_id` STRING
+"""

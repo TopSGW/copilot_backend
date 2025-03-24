@@ -10,8 +10,8 @@ from llama_index.llms.ollama import Ollama
 from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.core.vector_stores.simple import SimpleVectorStore
 from llama_index.core.memory import ChatMemoryBuffer
+from config.config import props_schema
 # import nest_asyncio
-
 # nest_asyncio.apply()
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -50,6 +50,7 @@ class GraphRAG:
         
         property_graph_store = NebulaPropertyGraphStore(
             space=self.space_name,
+            props_schema=props_schema
         )
 
         self.graph_index = PropertyGraphIndex.from_existing(
