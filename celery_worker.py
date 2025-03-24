@@ -3,7 +3,7 @@ import os
 import logging
 from llama_index.core import SimpleDirectoryReader, PropertyGraphIndex, Settings
 from llama_index.core.node_parser import SimpleNodeParser
-from llama_index.core.schema import TextNode as BaseTextNode
+from llama_index.core.schema import TextNode
 from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.llms.ollama import Ollama
 from llama_index.embeddings.ollama import OllamaEmbedding
@@ -20,6 +20,18 @@ import time
 import uuid
 from config.config import props_schema
 
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Union,
+)
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -31,20 +43,26 @@ formatter = logging.Formatter(
 stream_handler.setFormatter(formatter)
 logger.addHandler(stream_handler)
 
+class CustomTextNode(TextNode):
+    """
+    A custom subclass of TextNode that ensures a unique document ID is present.
+    This fixes the error:
+      "BaseModel.__init__() takes 1 positional argument but 3 were given"
+    by only passing keyword arguments to the parent __init__.
+    """
+    def __init__(self, **data: Any) -> None:
+        # Ensure metadata exists and is a dict
+        metadata = data.get("metadata", {})
+        if not isinstance(metadata, dict):
+            metadata = dict(metadata)
+        # Generate and add a doc_id if not already present
+        if "doc_id" not in metadata:
+            metadata["doc_id"] = str(uuid.uuid4())
+        data["metadata"] = metadata
+        
+        # Now call the parent initializer using keyword arguments only
+        super().__init__(**data)
 
-class CustomTextNode(BaseTextNode):
-    def __init__(self, text, metadata=None):
-        # Call the parent constructor
-        super().__init__(text, metadata)
-        # Ensure metadata is a dictionary
-        if self.metadata is None:
-            self.metadata = {}
-        # If 'doc_id' is not provided in metadata, generate one
-        if "doc_id" not in self.metadata:
-            self.metadata["doc_id"] = str(uuid.uuid4())
-
-    def get_doc_id(self):
-        return self.metadata["doc_id"]
 # Initialize the LLM
 Settings.llm = Ollama(
     model="llama3.3:70b",
