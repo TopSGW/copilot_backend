@@ -35,7 +35,7 @@ class GraphRAG:
         Settings.llm = Ollama(
             model="llama3.3:70b",
             temperature=0.3,
-            request_timeout=120.0,
+            request_timeout=500.0,
             base_url="http://localhost:11434"
         )
 
