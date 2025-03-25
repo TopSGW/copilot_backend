@@ -447,21 +447,21 @@ async def websocket_chat(websocket: WebSocket, token: str):
             print("Total duration:", end_time - start_time)
 
 
-            # start_time = datetime.datetime.now()
-            # print("Graph chat engine function started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
+            start_time = datetime.datetime.now()
+            print("Graph chat engine function started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
 
-            # if chat_history:
-            #     last_message = messages[-1]
-            #     print("Last message:", last_message)
-            # else:
-            #     print("No messages in chat_history")
-            # rest_messages = chat_history[:-1]
-            # graph_chat_answer = await graph_chat_engine.achat(message=last_message.get("content"), chat_history=rest_messages)
-            # print("Graph chat answer:", str(graph_chat_answer.response))
+            if chat_history:
+                last_message = messages[-1]
+                print("Last message:", last_message)
+            else:
+                print("No messages in chat_history")
+            rest_messages = chat_history[:-1]
+            graph_chat_answer = await graph_chat_engine.achat(message=last_message.get("content"), chat_history=rest_messages)
+            print("Graph chat answer:", str(graph_chat_answer.response))
 
-            # end_time = datetime.datetime.now()
-            # print("Graph chat engine function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
-            # print("Total duration:", end_time - start_time)
+            end_time = datetime.datetime.now()
+            print("Graph chat engine function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
+            print("Total duration:", end_time - start_time)
 
             # Build the user prompt by combining vector_answer and graph_response into the <context> block,
             # and including the user_input within the <question> block.
