@@ -212,7 +212,6 @@ async def websocket_chat(websocket: WebSocket, token: str):
     print(f"Chat WebSocket accepted for user: {user.phone_number}")
     websocket_open = True
     set_graph_space(space_name=f'space_{user.id}')
-    memory = ChatMemoryBuffer.from_defaults(token_limit=1500)
 
     property_graph_store = NebulaPropertyGraphStore(
         space=f'space_{user.id}',
@@ -330,32 +329,6 @@ async def websocket_chat(websocket: WebSocket, token: str):
         llm=Settings.llm,
     )
     # Define a prompt for RAG operations specifically
-    RAG_SYSTEM_PROMPT = """
-    # Information Retrieval Agent
-
-    You are a specialized retrieval agent designed for fast, accurate information lookup. Your primary job is to efficiently retrieve information and answer questions.
-
-    ## Core Principles
-    1. Speed - Prioritize quick responses
-    2. Precision - Answer exactly what was asked
-    3. Conciseness - Provide just the right amount of information
-
-    ## Response Framework
-    1. For factual questions: Retrieve → Summarize → Answer
-    2. For ambiguous queries: Clarify only if absolutely necessary
-    3. For data saving requests: Hand off immediately to add_data_agent
-
-    ## Efficiency Guidelines
-    - Use query_engine_tool for all information retrieval
-    - Return direct answers without explaining your process
-    - When information isn't available, say so directly
-    - For data saving operations, hand off immediately
-    - Keep responses under 4 sentences when possible
-    - Only return the most relevant information
-
-    When a user wants to save information, immediately hand off to the add_data_agent.
-    """
-
     query_agent = ReActAgent(
         name="query_agent",
         description="Specialized agent for fast information retrieval and query processing.",
@@ -381,7 +354,6 @@ async def websocket_chat(websocket: WebSocket, token: str):
         state_prompt="""State: {state}
     Query: {msg}""",
         # Configure with a timeout to prevent hanging
-        timeout=60
     )
 
     while websocket_open:
