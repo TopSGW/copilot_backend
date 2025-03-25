@@ -157,7 +157,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
         graph_vec_store = MilvusVectorStore(
             uri="http://localhost:19530", 
             collection_name=f"space_{user_id}",
-            dim=8192, 
+            dim=1536, 
             overwrite=False,         
             similarity_metric="COSINE",
             index_config=index_config
