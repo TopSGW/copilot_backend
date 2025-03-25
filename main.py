@@ -27,9 +27,9 @@ logger = logging.getLogger(__name__)
 
 # Configuration - consider using environment variables
 OLLAMA_BASE_URL = f"{OLLAMA_URL}/api"
-OLLAMA_MODELS = ["llama3.2"]
+OLLAMA_MODELS = ["llama3.3:70b", "llama3.2-vision:90b"]
 CHECK_INTERVAL = 240  # 4 minutes
-TIMEOUT = 500  # 10 seconds timeout for requests
+TIMEOUT = 200  # 200 seconds timeout for requests
 
 async def check_ollama_model(client: httpx.AsyncClient, model: str) -> Dict[str, Any]:
     """
