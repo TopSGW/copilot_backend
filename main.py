@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 OLLAMA_BASE_URL = f"{OLLAMA_URL}/api"
 OLLAMA_MODELS = ["llama3.2"]
 CHECK_INTERVAL = 240  # 4 minutes
-TIMEOUT = 10  # 10 seconds timeout for requests
+TIMEOUT = 500  # 10 seconds timeout for requests
 
 async def check_ollama_model(client: httpx.AsyncClient, model: str) -> Dict[str, Any]:
     """
