@@ -4,7 +4,7 @@ import nest_asyncio
 nest_asyncio.apply()
 
 import httpx
-from typing import List, AsyncGenerator
+from typing import List, AsyncGenerator, Dict, Any
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, Depends, HTTPException, Query
@@ -26,51 +26,93 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Configuration - consider using environment variables
-OLLAMA_ENDPOINTS = [
-    f"{OLLAMA_URL}/llama3.3:70b",
-    f"{OLLAMA_URL}/llama3.2-vision:90b"
-]
+OLLAMA_BASE_URL = f"{OLLAMA_URL}/api"
+OLLAMA_MODELS = ["llama3.2"]
 CHECK_INTERVAL = 240  # 4 minutes
-TIMEOUT = 500  # 500 seconds timeout for requests
+TIMEOUT = 10  # 10 seconds timeout for requests
 
-async def send_health_checks(client: httpx.AsyncClient, endpoints: List[str]):
-    """Send health check requests to Ollama endpoints."""
-    tasks = [
-        client.post(
-            endpoint, 
-            json={"prompt": "are you there?"},  # Adjust payload as per Ollama API
+async def check_ollama_model(client: httpx.AsyncClient, model: str) -> Dict[str, Any]:
+    """
+    Perform a health check on a specific Ollama model by attempting to load it.
+    
+    Args:
+        client: Async HTTP client
+        model: Name of the model to check
+    
+    Returns:
+        Dictionary with health check results
+    """
+    try:
+        response = await client.post(
+            f"{OLLAMA_BASE_URL}/generate", 
+            json={
+                "model": model,
+                "prompt": "",  # Empty prompt to just load the model
+                "stream": False
+            },
             timeout=TIMEOUT
-        ) for endpoint in endpoints
-    ]
+        )
+        
+        # Check if the response is successful
+        response.raise_for_status()
+        
+        # Parse the response
+        result = response.json()
+        
+        return {
+            "model": model,
+            "status": "healthy",
+            "created_at": result.get("created_at"),
+            "done": result.get("done", False)
+        }
     
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    
-    for idx, result in enumerate(results, start=1):
-        if isinstance(result, Exception):
-            logger.error(f"Health check failed for endpoint {endpoints[idx-1]}: {result}")
-        elif hasattr(result, 'status_code'):
-            logger.info(f"Health check for endpoint {endpoints[idx-1]}: Status {result.status_code}")
+    except httpx.RequestError as e:
+        logger.error(f"Error checking model {model}: {e}")
+        return {
+            "model": model,
+            "status": "unhealthy",
+            "error": str(e)
+        }
+    except Exception as e:
+        logger.error(f"Unexpected error checking model {model}: {e}")
+        return {
+            "model": model,
+            "status": "error",
+            "error": str(e)
+        }
 
-async def continuous_health_checks():
-    """Continuously perform health checks on Ollama endpoints."""
+async def continuous_model_health_checks():
+    """
+    Continuously perform health checks on configured Ollama models.
+    """
     async with httpx.AsyncClient() as client:
         while True:
             try:
-                await send_health_checks(client, OLLAMA_ENDPOINTS)
+                # Perform health checks for all models
+                health_checks = await asyncio.gather(
+                    *[check_ollama_model(client, model) for model in OLLAMA_MODELS]
+                )
+                
+                # Log health check results
+                for check in health_checks:
+                    if check['status'] == 'healthy':
+                        logger.info(f"Model {check['model']} is healthy")
+                    else:
+                        logger.warning(f"Model health check failed: {check}")
+            
             except Exception as e:
                 logger.error(f"Unexpected error in health checks: {e}")
             
+            # Wait before next round of checks
             await asyncio.sleep(CHECK_INTERVAL)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
     """
     Lifespan context manager to handle startup and shutdown events.
-    
-    This replaces the deprecated @app.on_event("startup") decorator.
     """
     # Startup tasks
-    health_check_task = asyncio.create_task(continuous_health_checks())
+    health_check_task = asyncio.create_task(continuous_model_health_checks())
     
     try:
         yield {}
