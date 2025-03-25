@@ -3,6 +3,10 @@ import uvloop
 import nest_asyncio
 nest_asyncio.apply()
 
+import httpx
+from typing import List, AsyncGenerator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, WebSocket, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 import logging
@@ -13,6 +17,7 @@ from auth import get_current_user, UserOut
 from routes.websockets import websocket_auth_dialogue, websocket_chat
 from routes.repositories import router as repositories_router
 from routes.files import router as files_router
+from config.config import OLLAMA_URL
 # Configure logging
 uvloop.install()
 
@@ -20,7 +25,64 @@ logging.basicConfig(level=logging.DEBUG)
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+# Configuration - consider using environment variables
+OLLAMA_ENDPOINTS = [
+    f"{OLLAMA_URL}/llama3.3:70b",
+    f"{OLLAMA_URL}/llama3.2-vision:90b"
+]
+CHECK_INTERVAL = 240  # 4 minutes
+TIMEOUT = 500  # 500 seconds timeout for requests
+
+async def send_health_checks(client: httpx.AsyncClient, endpoints: List[str]):
+    """Send health check requests to Ollama endpoints."""
+    tasks = [
+        client.post(
+            endpoint, 
+            json={"prompt": "are you there?"},  # Adjust payload as per Ollama API
+            timeout=TIMEOUT
+        ) for endpoint in endpoints
+    ]
+    
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    for idx, result in enumerate(results, start=1):
+        if isinstance(result, Exception):
+            logger.error(f"Health check failed for endpoint {endpoints[idx-1]}: {result}")
+        elif hasattr(result, 'status_code'):
+            logger.info(f"Health check for endpoint {endpoints[idx-1]}: Status {result.status_code}")
+
+async def continuous_health_checks():
+    """Continuously perform health checks on Ollama endpoints."""
+    async with httpx.AsyncClient() as client:
+        while True:
+            try:
+                await send_health_checks(client, OLLAMA_ENDPOINTS)
+            except Exception as e:
+                logger.error(f"Unexpected error in health checks: {e}")
+            
+            await asyncio.sleep(CHECK_INTERVAL)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[dict, None]:
+    """
+    Lifespan context manager to handle startup and shutdown events.
+    
+    This replaces the deprecated @app.on_event("startup") decorator.
+    """
+    # Startup tasks
+    health_check_task = asyncio.create_task(continuous_health_checks())
+    
+    try:
+        yield {}
+    finally:
+        # Cleanup tasks on shutdown
+        health_check_task.cancel()
+        try:
+            await health_check_task
+        except asyncio.CancelledError:
+            logger.info("Health check task cancelled successfully")
+
+app = FastAPI(lifespan=lifespan)
 
 # Enable CORS
 app.add_middleware(
