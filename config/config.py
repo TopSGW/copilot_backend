@@ -15,7 +15,6 @@ UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 OLLAMA_URL = "http://157.157.221.29:20707"
-os.environ['OLLAMA_HOST'] = OLLAMA_URL
 
 props_schema = """
     `page_label` STRING,
