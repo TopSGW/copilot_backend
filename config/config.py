@@ -10,6 +10,9 @@ JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your_jwt_secret_here")
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = int(os.getenv("ACCESS_TOKEN_EXPIRE_HOURS", "30"))
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password")
+NEO4J_HOST = os.getenv("NEO4J_HOST", "localhost")
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -31,7 +34,3 @@ props_schema = """
     `ref_doc_id` STRING,
     `triplet_source_id` STRING
 """
-
-neo4j_user = os.getenv("NEO4J_USER", "neo4j")
-neo4j_password = os.getenv("NEO4J_PASSWORD", "password")
-neo4j_host = os.getenv("NEO4J_HOST", "localhost")

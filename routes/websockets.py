@@ -38,15 +38,14 @@ from nebula3.gclient.net import ConnectionPool
 from config.config import UPLOAD_DIR
 from routes.files import create_text_file, append_to_file
 import datetime
-from config.config import OLLAMA_URL, props_schema, neo4j_host, neo4j_password, neo4j_user
+from config.config import OLLAMA_URL, props_schema, NEO4J_HOST, NEO4J_PASSWORD, NEO4J_USER
 from llama_index.graph_stores.neo4j import Neo4jPropertyGraphStore
 from neo4j import GraphDatabase
 
-uri = neo4j_host  # Update with your Neo4j URI
+uri = NEO4J_HOST  # Update with your Neo4j URI
 
-print("neo4j URI :", uri)
-admin_username = neo4j_user        # Admin username
-admin_password = neo4j_password  # Admin password
+admin_username = NEO4J_USER        # Admin username
+admin_password = NEO4J_PASSWORD  # Admin password
 
 driver = GraphDatabase.driver(uri, auth=(admin_username, admin_password))
 
