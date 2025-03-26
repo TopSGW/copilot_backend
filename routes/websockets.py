@@ -44,6 +44,7 @@ from neo4j import GraphDatabase
 
 uri = NEO4J_HOST  # Update with your Neo4j URI
 
+print("BOLT URI", uri)
 admin_username = NEO4J_USER        # Admin username
 admin_password = NEO4J_PASSWORD  # Admin password
 
