@@ -250,14 +250,13 @@ async def websocket_chat(websocket: WebSocket, token: str):
     websocket_open = True
     set_graph_space(space_name=f'space_{user.id}')
 
-    create_database_if_not_exists(f'space_{user.id}')
+    # create_database_if_not_exists(f'space_{user.id}')
 
     example_documents = SimpleDirectoryReader("./data/blackrock").load_data()
     pg_neo4j_store = Neo4jPropertyGraphStore(
         username="neo4j",
         password="neo4j",
         url="http://localhost:7474",
-        database=f'space_{user.id}',
     )
     pg_neo4j_index = PropertyGraphIndex.from_documents(
         property_graph_store=pg_neo4j_store,
