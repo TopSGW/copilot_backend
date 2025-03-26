@@ -14,7 +14,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-OLLAMA_URL = "http://157.157.221.29:20786"
+OLLAMA_URL = "http://157.157.221.29:20707"
 os.environ['OLLAMA_HOST'] = OLLAMA_URL
 
 props_schema = """
@@ -32,3 +32,7 @@ props_schema = """
     `ref_doc_id` STRING,
     `triplet_source_id` STRING
 """
+
+neo4j_user = os.getenv("NEO4J_USER", "neo4j")
+neo4j_password = os.getenv("NEO4J_PASSWORD", "password")
+neo4j_host = os.getenv("NEO4J_HOST", "localhost")

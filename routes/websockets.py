@@ -8,11 +8,12 @@ from autogen_agentchat.messages import TextMessage
 from autogen_core import CancellationToken
 from datetime import timedelta
 from llama_index.vector_stores.milvus import MilvusVectorStore
-from llama_index.core import SimpleDirectoryReader
+from llama_index.core import SimpleDirectoryReader, StorageContext
 from llama_index.core.prompts import ChatMessage, ChatPromptTemplate
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core import PropertyGraphIndex, Settings
 from llama_index.llms.ollama import Ollama
+from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.graph_stores.nebula import NebulaPropertyGraphStore
 from llama_index.core.llms import ChatMessage, MessageRole, TextBlock, ImageBlock
 from llama_index.core.tools import QueryEngineTool
@@ -37,13 +38,47 @@ from nebula3.gclient.net import ConnectionPool
 from config.config import UPLOAD_DIR
 from routes.files import create_text_file, append_to_file
 import datetime
-from config.config import OLLAMA_URL, props_schema
+from config.config import OLLAMA_URL, props_schema, neo4j_host, neo4j_password, neo4j_user
+from llama_index.graph_stores.neo4j import Neo4jPropertyGraphStore
+from neo4j import GraphDatabase
+
+uri = neo4j_host  # Update with your Neo4j URI
+admin_username = neo4j_user        # Admin username
+admin_password = neo4j_password  # Admin password
+
+driver = GraphDatabase.driver(uri, auth=(admin_username, admin_password))
+
+def database_exists(db_name):
+    """
+    Check if a database exists in the Neo4j instance.
+    """
+    with driver.session(database="system") as session:
+        result = session.run("SHOW DATABASES")
+        databases = [record["name"] for record in result]
+        return db_name in databases
+
+def create_database_if_not_exists(db_name):
+    """
+    Create a new database if it does not already exist.
+    """
+    if database_exists(db_name):
+        print(f"Database '{db_name}' already exists.")
+    else:
+        with driver.session(database="system") as session:
+            session.run(f"CREATE DATABASE {db_name}")
+        print(f"Database '{db_name}' created successfully.")
 
 Settings.llm = Ollama(
     model="llama3.3:70b",
     temperature=0.3,
     request_timeout=500.0,
     base_url=OLLAMA_URL
+)
+Settings.embed_model = OllamaEmbedding(
+    model_name="mxbai-embed-large",
+    base_url=OLLAMA_URL,
+    request_timeout=500.0,
+    ollama_additional_kwargs={"mirostat": 0},
 )
 
 auth_agent = LlamaHandler(system_prompt=llama_system_prompt)
@@ -214,6 +249,25 @@ async def websocket_chat(websocket: WebSocket, token: str):
     websocket_open = True
     set_graph_space(space_name=f'space_{user.id}')
 
+    create_database_if_not_exists(f'space_{user.id}')
+
+    example_documents = SimpleDirectoryReader("./data/blackrock").load_data()
+    pg_neo4j_store = Neo4jPropertyGraphStore(
+        username="neo4j",
+        password="neo4j",
+        url="http://localhost:7474",
+        database=f'space_{user.id}',
+    )
+    pg_neo4j_index = PropertyGraphIndex.from_documents(
+        property_graph_store=pg_neo4j_store,
+        documents=example_documents,
+        llm=Settings.llm,
+        embed_model=Settings.embed_model,
+    )
+    neo4j_chat_engine = pg_neo4j_index.as_chat_engine(
+        chat_mode="context",
+        llm=Settings.llm
+    )
     property_graph_store = NebulaPropertyGraphStore(
         space=f'space_{user.id}',
         props_schema=props_schema
@@ -437,6 +491,13 @@ async def websocket_chat(websocket: WebSocket, token: str):
             print("Graph chat engine function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
             print("Total duration:", end_time - start_time)
 
+            start_time = datetime.datetime.now()
+            print("Neo4j chat engine function started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
+            neo4j_chat_engine = await neo4j_chat_engine.achat(message="Who the founders of the BlackRock?")
+            print("Neo4j chat engine answer:", str(neo4j_chat_engine.response))
+            end_time = datetime.datetime.now()
+            print("Neo4j chat engine function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
+            print("Neo4j---> Total duration:", end_time - start_time)
             # Build the user prompt by combining vector_answer and graph_response into the <context> block,
             # and including the user_input within the <question> block.
             # USER_PROMPT = f"""
@@ -469,5 +530,6 @@ async def websocket_chat(websocket: WebSocket, token: str):
             print("Error processing message:", e)
             await websocket.send_json({"message": "An error occurred processing your request."})
     print("Closing chat WebSocket.")
+    driver.close()
     if websocket_open:
         await websocket.close()

@@ -73,8 +73,10 @@ Settings.llm = Ollama(
 
 # Define embedding model explicitly
 ollama_embedding = OllamaEmbedding(
-    model_name="llama3.3:70b",
+    model_name="mxbai-embed-large",
     base_url=OLLAMA_URL,
+    request_timeout=500.0,
+    ollama_additional_kwargs={"mirostat": 0},
 )
 
 # Set the embedding model for all indices
@@ -223,32 +225,28 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                     )
                     logger.info(f"Text response received from vision model")
                     logger.info(f"text response {txt_response}")
-                    txt_file_location = os.path.join(repo_upload_dir, os.path.splitext(filename)[0] + ".txt")
 
-                    with open(txt_file_location, "w") as image_file:
-                        image_file.write(str(txt_response))
-
-                    simple_doc = SimpleDirectoryReader(input_files=[txt_file_location]).load_data()
+                    simple_doc = Document(
+                        text=txt_response,
+                        metadata=source_data[0].metadata
+                    )
                     
-                    for doc in simple_doc: 
-                        logger.info("Setting metadata and inserting document")
-                        doc.metadata = source_data[0].metadata
-                        try:
+                    try:
+                        graph_index.insert(simple_doc)
+                    except RuntimeError as e:
+                        if "Event loop is closed" in str(e):
+                            logger.warning(f"Event loop error occurred, continuing: {str(e)}")
+                            import time
+                            time.sleep(1)
+                            graph_index = PropertyGraphIndex.from_existing(
+                                property_graph_store=property_graph_store,
+                                vector_store=graph_vec_store,
+                                llm=Settings.llm,
+                                embed_model=Settings.embed_model,
+                            )
                             graph_index.insert(doc)
-                        except RuntimeError as e:
-                            if "Event loop is closed" in str(e):
-                                logger.warning(f"Event loop error occurred, continuing: {str(e)}")
-                                import time
-                                time.sleep(1)
-                                graph_index = PropertyGraphIndex.from_existing(
-                                    property_graph_store=property_graph_store,
-                                    vector_store=graph_vec_store,
-                                    llm=Settings.llm,
-                                    embed_model=Settings.embed_model,
-                                )
-                                graph_index.insert(doc)
-                            else:
-                                raise
+                        else:
+                            raise
 
                 case '.pdf':
                     # Create a subdirectory to save images (using PDF base name)
