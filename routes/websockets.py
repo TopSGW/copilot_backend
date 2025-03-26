@@ -388,7 +388,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
         llm=Settings.llm,
     )
     # Define a prompt for RAG operations specifically
-    query_agent = ReActAgent(
+    query_agent = FunctionAgent(
         name="query_agent",
         description="Specialized agent for fast information retrieval and query processing.",
         system_prompt=prompts.RAG_SYSTEM_PROMPT,
@@ -500,7 +500,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
 
             graph_query_response = await graph_query_engine.aquery(last_message.get("content"))
             print("Graph query response:", str(graph_query_response))
-            
+
             end_time = datetime.datetime.now()
             print("Graph chat engine function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
             print("Total duration:", end_time - start_time)
