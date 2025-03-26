@@ -390,7 +390,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
         description="Specialized agent for fast information retrieval and query processing.",
         system_prompt=prompts.RAG_SYSTEM_PROMPT,
         tools=[query_engine_tool],
-        can_handoff_to=["add_data_agent"],
+        can_handoff_to=[],
         llm=Settings.llm,
     )
 
