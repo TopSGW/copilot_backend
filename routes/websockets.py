@@ -253,22 +253,22 @@ async def websocket_chat(websocket: WebSocket, token: str):
 
     # create_database_if_not_exists(f'space_{user.id}')
 
-    example_documents = SimpleDirectoryReader("./data/blackrock").load_data()
-    pg_neo4j_store = Neo4jPropertyGraphStore(
-        username=NEO4J_USER,
-        password=NEO4J_PASSWORD,
-        url=NEO4J_HOST,
-    )
-    pg_neo4j_index = PropertyGraphIndex.from_documents(
-        property_graph_store=pg_neo4j_store,
-        documents=example_documents,
-        llm=Settings.llm,
-        embed_model=Settings.embed_model,
-    )
-    neo4j_chat_engine = pg_neo4j_index.as_chat_engine(
-        chat_mode="context",
-        llm=Settings.llm
-    )
+    # example_documents = SimpleDirectoryReader("./data/blackrock").load_data()
+    # pg_neo4j_store = Neo4jPropertyGraphStore(
+    #     username=NEO4J_USER,
+    #     password=NEO4J_PASSWORD,
+    #     url=NEO4J_HOST,
+    # )
+    # pg_neo4j_index = PropertyGraphIndex.from_documents(
+    #     property_graph_store=pg_neo4j_store,
+    #     documents=example_documents,
+    #     llm=Settings.llm,
+    #     embed_model=Settings.embed_model,
+    # )
+    # neo4j_chat_engine = pg_neo4j_index.as_chat_engine(
+    #     chat_mode="context",
+    #     llm=Settings.llm
+    # )
     property_graph_store = NebulaPropertyGraphStore(
         space=f'space_{user.id}',
         props_schema=props_schema
@@ -492,13 +492,6 @@ async def websocket_chat(websocket: WebSocket, token: str):
             print("Graph chat engine function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
             print("Total duration:", end_time - start_time)
 
-            start_time = datetime.datetime.now()
-            print("Neo4j chat engine function started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
-            neo4j_chat_engine = await neo4j_chat_engine.achat(message="Who the founders of the BlackRock?")
-            print("Neo4j chat engine answer:", str(neo4j_chat_engine.response))
-            end_time = datetime.datetime.now()
-            print("Neo4j chat engine function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
-            print("Neo4j---> Total duration:", end_time - start_time)
             # Build the user prompt by combining vector_answer and graph_response into the <context> block,
             # and including the user_input within the <question> block.
             # USER_PROMPT = f"""
