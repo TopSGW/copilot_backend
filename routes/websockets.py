@@ -43,6 +43,8 @@ from llama_index.graph_stores.neo4j import Neo4jPropertyGraphStore
 from neo4j import GraphDatabase
 
 uri = neo4j_host  # Update with your Neo4j URI
+
+print("neo4j URI :", uri)
 admin_username = neo4j_user        # Admin username
 admin_password = neo4j_password  # Admin password
 
