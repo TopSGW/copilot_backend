@@ -17,7 +17,7 @@ NEO4J_HOST = os.getenv("NEO4J_HOST", "bolt://localhost:7687")
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-OLLAMA_URL = "http://157.157.221.29:20707"
+OLLAMA_URL = "http://157.157.221.29:20709"
 
 props_schema = """
     `page_label` STRING,
