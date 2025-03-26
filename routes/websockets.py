@@ -255,9 +255,9 @@ async def websocket_chat(websocket: WebSocket, token: str):
 
     example_documents = SimpleDirectoryReader("./data/blackrock").load_data()
     pg_neo4j_store = Neo4jPropertyGraphStore(
-        username="neo4j",
-        password="neo4j",
-        url="http://localhost:7474",
+        username=NEO4J_USER,
+        password=NEO4J_PASSWORD,
+        url=NEO4J_HOST,
     )
     pg_neo4j_index = PropertyGraphIndex.from_documents(
         property_graph_store=pg_neo4j_store,
