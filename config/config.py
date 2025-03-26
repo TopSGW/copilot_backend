@@ -11,8 +11,8 @@ JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = int(os.getenv("ACCESS_TOKEN_EXPIRE_HOURS", "30"))
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password")
-NEO4J_HOST = os.getenv("NEO4J_HOST", "localhost")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "llamaindex")
+NEO4J_HOST = os.getenv("NEO4J_HOST", "bolt://localhost:7687")
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
