@@ -270,6 +270,12 @@ async def websocket_chat(websocket: WebSocket, token: str):
         space=f'space_{user.id}',
         props_schema=props_schema
     )
+    # index_config = {
+    #     "index_type": "IVF_FLAT",
+    #     "params": {
+    #         "nlist": 128
+    #     }
+    # }
     index_config = {
         "index_type": "HNSW",
         "params": {
@@ -283,8 +289,8 @@ async def websocket_chat(websocket: WebSocket, token: str):
         collection_name=f"space_{user.id}",
         dim=1024,
         overwrite=False,
+        similarity_metric="COSINE",
         index_config=index_config,
-        metric_type="COSINE",
     )
 
     graph_index = PropertyGraphIndex.from_existing(
