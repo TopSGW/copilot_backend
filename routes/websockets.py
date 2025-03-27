@@ -39,6 +39,7 @@ from config.config import UPLOAD_DIR
 from routes.files import create_text_file, append_to_file
 import datetime
 from config.config import OLLAMA_URL, props_schema
+from pymilvus import utility
 
 # uri = NEO4J_HOST  # Update with your Neo4j URI
 
@@ -293,6 +294,8 @@ async def websocket_chat(websocket: WebSocket, token: str):
         vector_store=graph_vec_store,
         llm=Settings.llm,
     )
+
+    utility.load_collection(f"space_{user.id}")
 
     query_engine = graph_index.as_query_engine(llm=Settings.llm)
 
