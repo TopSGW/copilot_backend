@@ -487,17 +487,17 @@ async def websocket_chat(websocket: WebSocket, token: str):
             # Human: You are an AI assistant. You are able to find answers to the questions from the contextual passage snippets provided.
             # """.strip()
 
-            start_time = datetime.datetime.now()
-            print("Main function started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
+            # start_time = datetime.datetime.now()
+            # print("Main function started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
 
-            response = await agent_workflow.run(chat_history=chat_history)
-            print(response)
-            final_answer = str(response)
+            # response = await agent_workflow.run(chat_history=chat_history)
+            # print(response)
+            # final_answer = str(response)
             
 
-            end_time = datetime.datetime.now()
-            print("Main function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
-            print("Total duration:", end_time - start_time)
+            # end_time = datetime.datetime.now()
+            # print("Main function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
+            # print("Total duration:", end_time - start_time)
 
 
             start_time = datetime.datetime.now()
