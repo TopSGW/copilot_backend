@@ -275,8 +275,9 @@ async def websocket_chat(websocket: WebSocket, token: str):
         "index_type": "HNSW",
         "params": {
             "M": 16,
-            "efConstruction": 500,
-        }
+            "efConstruction": 128,
+        },
+        "metric_type": "COSINE"
     }
     graph_vec_store = MilvusVectorStore(
         uri="http://localhost:19530", 
@@ -284,7 +285,6 @@ async def websocket_chat(websocket: WebSocket, token: str):
         dim=768,
         overwrite=False,
         index_config=index_config,
-        similarity_metric="IP",
     )
 
     graph_index = PropertyGraphIndex.from_existing(
