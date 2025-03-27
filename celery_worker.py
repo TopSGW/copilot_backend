@@ -150,9 +150,10 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
 
         # Initialize index and vector stores
         index_config = {
-            "index_type": "IVF_FLAT",
+            "index_type": "HNSW",
             "params": {
-                "nlist": 128
+                "M": 16,
+                "efConstruction": 500,
             }
         }
 
@@ -160,8 +161,8 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
             uri="http://localhost:19530", 
             collection_name=f"space_{user_id}",
             dim=1536, 
-            overwrite=False,         
-            similarity_metric="COSINE",
+            overwrite=True,         
+            similarity_metric="IP",
             index_config=index_config
         )
         

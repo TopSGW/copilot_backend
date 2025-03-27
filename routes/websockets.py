@@ -38,37 +38,35 @@ from nebula3.gclient.net import ConnectionPool
 from config.config import UPLOAD_DIR
 from routes.files import create_text_file, append_to_file
 import datetime
-from config.config import OLLAMA_URL, props_schema, NEO4J_HOST, NEO4J_PASSWORD, NEO4J_USER
-from llama_index.graph_stores.neo4j import Neo4jPropertyGraphStore
-from neo4j import GraphDatabase
+from config.config import OLLAMA_URL, props_schema
 
-uri = NEO4J_HOST  # Update with your Neo4j URI
+# uri = NEO4J_HOST  # Update with your Neo4j URI
 
-print("BOLT URI", uri)
-admin_username = NEO4J_USER        # Admin username
-admin_password = NEO4J_PASSWORD  # Admin password
+# print("BOLT URI", uri)
+# admin_username = NEO4J_USER        # Admin username
+# admin_password = NEO4J_PASSWORD  # Admin password
 
-driver = GraphDatabase.driver(uri, auth=(admin_username, admin_password))
+# driver = GraphDatabase.driver(uri, auth=(admin_username, admin_password))
 
-def database_exists(db_name):
-    """
-    Check if a database exists in the Neo4j instance.
-    """
-    with driver.session(database="system") as session:
-        result = session.run("SHOW DATABASES")
-        databases = [record["name"] for record in result]
-        return db_name in databases
+# def database_exists(db_name):
+#     """
+#     Check if a database exists in the Neo4j instance.
+#     """
+#     with driver.session(database="system") as session:
+#         result = session.run("SHOW DATABASES")
+#         databases = [record["name"] for record in result]
+#         return db_name in databases
 
-def create_database_if_not_exists(db_name):
-    """
-    Create a new database if it does not already exist.
-    """
-    if database_exists(db_name):
-        print(f"Database '{db_name}' already exists.")
-    else:
-        with driver.session(database="system") as session:
-            session.run(f"CREATE DATABASE {db_name}")
-        print(f"Database '{db_name}' created successfully.")
+# def create_database_if_not_exists(db_name):
+#     """
+#     Create a new database if it does not already exist.
+#     """
+#     if database_exists(db_name):
+#         print(f"Database '{db_name}' already exists.")
+#     else:
+#         with driver.session(database="system") as session:
+#             session.run(f"CREATE DATABASE {db_name}")
+#         print(f"Database '{db_name}' created successfully.")
 
 Settings.llm = Ollama(
     model="llama3.3:70b",
@@ -269,6 +267,13 @@ async def websocket_chat(websocket: WebSocket, token: str):
     #     chat_mode="context",
     #     llm=Settings.llm
     # )
+    index_config = {
+        "index_type": "HNSW",
+        "params": {
+            "M": 16,
+            "efConstruction": 500,
+        }
+    }
     property_graph_store = NebulaPropertyGraphStore(
         space=f'space_{user.id}',
         props_schema=props_schema
@@ -277,9 +282,8 @@ async def websocket_chat(websocket: WebSocket, token: str):
         uri="http://localhost:19530", 
         collection_name=f"space_{user.id}",
         dim=1536,
-        overwrite=False,  
-        metric_type="COSINE",
-        index_type="IVF_FLAT",
+        overwrite=False,
+        index_config=index_config
     )
 
     graph_index = PropertyGraphIndex.from_existing(
@@ -536,6 +540,5 @@ async def websocket_chat(websocket: WebSocket, token: str):
             print("Error processing message:", e)
             await websocket.send_json({"message": "An error occurred processing your request."})
     print("Closing chat WebSocket.")
-    driver.close()
     if websocket_open:
         await websocket.close()
