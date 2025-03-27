@@ -267,6 +267,10 @@ async def websocket_chat(websocket: WebSocket, token: str):
     #     chat_mode="context",
     #     llm=Settings.llm
     # )
+    property_graph_store = NebulaPropertyGraphStore(
+        space=f'space_{user.id}',
+        props_schema=props_schema
+    )
     index_config = {
         "index_type": "HNSW",
         "params": {
@@ -274,16 +278,13 @@ async def websocket_chat(websocket: WebSocket, token: str):
             "efConstruction": 500,
         }
     }
-    property_graph_store = NebulaPropertyGraphStore(
-        space=f'space_{user.id}',
-        props_schema=props_schema
-    )
     graph_vec_store = MilvusVectorStore(
         uri="http://localhost:19530", 
         collection_name=f"space_{user.id}",
         dim=768,
         overwrite=False,
-        index_config=index_config
+        index_config=index_config,
+        similarity_metric="IP",
     )
 
     graph_index = PropertyGraphIndex.from_existing(
