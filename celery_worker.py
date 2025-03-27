@@ -161,8 +161,8 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
             collection_name=f"space_{user_id}",
             dim=1024, 
             overwrite=False,
+            similarity_metric="COSINE",
             index_config=index_config,
-            similarity_metric="IP"
         )
         
         graph_index = PropertyGraphIndex.from_existing(
