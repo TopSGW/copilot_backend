@@ -286,7 +286,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
         dim=1024,
         overwrite=False,
         index_config=index_config,
-        similarity_metric="COSINE",
+        metric_type="COSINE",
     )
 
     graph_index = PropertyGraphIndex.from_existing(
