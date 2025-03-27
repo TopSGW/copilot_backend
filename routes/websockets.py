@@ -346,7 +346,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
             print(f"Content appended to file at: {file_path}")
             return {"status": "success", "message": "Content saved successfully"}
 
-    add_data_agent = ReActAgent(
+    add_data_agent = FunctionAgent(
         name="add_data_agent",
         description="Specialized agent for explicit data saving operations.",
         system_prompt=(
