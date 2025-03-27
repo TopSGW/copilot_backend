@@ -277,7 +277,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
             "M": 16,
             "efConstruction": 128,
         },
-        "metric_type": "COSINE"
+        "metric_type": "IP"
     }
     graph_vec_store = MilvusVectorStore(
         uri="http://localhost:19530", 

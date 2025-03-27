@@ -155,7 +155,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                 "M": 16,
                 "efConstruction": 128,
             },
-            "metric_type": "COSINE"
+            "metric_type": "IP"
         }
 
         graph_vec_store = MilvusVectorStore(
