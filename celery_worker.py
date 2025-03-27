@@ -155,7 +155,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
                 "M": 16,
                 "efConstruction": 128,
             },
-            "metric_type": "IP"
+            "metric_type": "COSINE"
         }
 
         graph_vec_store = MilvusVectorStore(
@@ -163,7 +163,8 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
             collection_name=f"space_{user_id}",
             dim=1536, 
             overwrite=False,
-            index_config=index_config
+            index_config=index_config,
+            similarity_metric="COSINE"
         )
         
         graph_index = PropertyGraphIndex.from_existing(
