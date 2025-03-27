@@ -82,6 +82,11 @@ ollama_embedding = OllamaEmbedding(
 # Set the embedding model for all indices
 Settings.embed_model = ollama_embedding
 
+test_text = "Hello world!"
+emb = ollama_embedding.get_text_embedding(test_text)
+print("embedding dimension: >>>>>",  len(emb))  # <-- This tells you the exact embedding dimension
+
+
 # Configure Celery with Redis as broker
 celery_app = Celery("worker", broker="redis://localhost:6379/0", backend="redis://localhost:6379/1")
 
