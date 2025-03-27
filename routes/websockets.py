@@ -491,7 +491,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
             print("Main function started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
 
             response = await agent_workflow.run(chat_history=chat_history)
-            print(response)
+            print("Main answer::", response)
             final_answer = str(response)
             
 
