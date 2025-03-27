@@ -274,7 +274,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     index_config = {
         "index_type": "HNSW",
         "params": {
-            "M": 16,
+            "M": 8,
             "efConstruction": 128,
         },
         "metric_type": "COSINE"
