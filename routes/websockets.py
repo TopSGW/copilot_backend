@@ -281,7 +281,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
         collection_name=f"space_{user.id}",
         dim=1024,
         overwrite=False,
-        similarity_metric="COSINE",
+        similarity_metric="IP",
         index_config=index_config,
     )
 
