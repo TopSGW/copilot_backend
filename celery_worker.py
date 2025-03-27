@@ -150,12 +150,10 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
 
         # Initialize index and vector stores
         index_config = {
-            "index_type": "HNSW",
+            "index_type": "IVF_FLAT",
             "params": {
-                "M": 8,
-                "efConstruction": 64,
-            },
-            "metric_type": "COSINE"
+                "nlist": 128
+            }
         }
 
         graph_vec_store = MilvusVectorStore(

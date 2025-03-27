@@ -270,19 +270,11 @@ async def websocket_chat(websocket: WebSocket, token: str):
         space=f'space_{user.id}',
         props_schema=props_schema
     )
-    # index_config = {
-    #     "index_type": "IVF_FLAT",
-    #     "params": {
-    #         "nlist": 128
-    #     }
-    # }
     index_config = {
-        "index_type": "HNSW",
+        "index_type": "IVF_FLAT",
         "params": {
-            "M": 8,
-            "efConstruction": 64,
-        },
-        "metric_type": "COSINE"
+            "nlist": 128
+        }
     }
     graph_vec_store = MilvusVectorStore(
         uri="http://localhost:19530", 
