@@ -21,7 +21,7 @@ from config.config import OLLAMA_URL
 # Configure logging
 uvloop.install()
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 
 logger = logging.getLogger(__name__)
 
