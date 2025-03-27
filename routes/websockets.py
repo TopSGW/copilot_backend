@@ -282,7 +282,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     graph_vec_store = MilvusVectorStore(
         uri="http://localhost:19530", 
         collection_name=f"space_{user.id}",
-        dim=768,
+        dim=1536,
         overwrite=False,
         index_config=index_config,
     )
