@@ -281,7 +281,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     graph_vec_store = MilvusVectorStore(
         uri="http://localhost:19530", 
         collection_name=f"space_{user.id}",
-        dim=1536,
+        dim=768,
         overwrite=False,
         index_config=index_config
     )
@@ -319,7 +319,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     note_path = os.path.join(repo_upload_dir, "note.txt")
     create_text_file(note_path)
 
-    def append_save_to_file(file_path: str, content: str):
+    def append_save_to_file(content: str):
         """
         Appends the provided content to the file at file_path.
         If the file does not exist, it will be created automatically.
@@ -335,7 +335,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
         time_content = datetime.datetime.now()
         input_content = f"[{time_content}]\n{content}"
         print(f">>>>>>>>content<<<<<<< {input_content}")
-        
+        file_path = note_path
         try:
             with open(file_path, 'a', encoding='utf-8') as file:
                 file.write(input_content + "\n")
@@ -350,73 +350,96 @@ async def websocket_chat(websocket: WebSocket, token: str):
             print(f"Content appended to file at: {file_path}")
             return {"status": "success", "message": "Content saved successfully"}
 
-    add_data_agent = FunctionAgent(
-        name="add_data_agent",
-        description="Specialized agent for explicit data saving operations.",
+    # add_data_agent = FunctionAgent(
+    #     name="add_data_agent",
+    #     description="Specialized agent for explicit data saving operations.",
+    #     system_prompt=(
+    #         "# Data Saving Agent\n\n"
+    #         "You are a specialized agent focused exclusively on explicitly requested save operations. "
+    #         "Respond concisely and use tools only when the user clearly instructs to save information.\n\n"
+
+    #         "## Core Responsibilities\n"
+    #         "1. Save user-provided information upon explicit request.\n"
+    #         "2. Save retrieved information explicitly requested by the user.\n\n"
+
+    #         "## Explicit Save Request Identification\n"
+    #         "- Save only if user explicitly instructs ('save this', 'remember', 'add to notes').\n"
+    #         "- Do NOT save if user simply asks for file location, file names, or general queries.\n"
+
+    #         "## Save Data Format (ALWAYS USE THIS)\n"
+    #         "[topic]\n"
+    #         "[detailed information]\n\n"
+
+    #         "## Quick Decision Tree\n"
+    #         "- Explicit save request → Extract info → Generate topic → Save\n"
+    #         "- Retrieval + save request ('do you know X? save it') → Query → Format → Save\n"
+    #         "- All other queries → Hand off immediately to query_agent\n\n"
+
+    #         "## Response Templates\n"
+    #         "- Success: 'Saved: [topic]'\n"
+    #         "- Failure: 'Unable to save: [reason]'\n"
+    #         "- Handoff: 'Let me get you that information.'\n\n"
+
+    #         "## Efficiency Rules\n"
+    #         "- Do not attempt implicit saves.\n"
+    #         "- Respond in one concise sentence.\n"
+    #         f"- Always use {note_path} as the file path.\n"
+    #         "- Hand off non-save queries immediately.\n"
+    #         "- Never ask clarifying questions."
+    #     ),
+    #     tools=[append_save_to_file, query_engine_tool],
+    #     can_handoff_to=["query_agent"],
+    #     llm=Settings.llm,
+    # )
+    # # Define a prompt for RAG operations specifically
+    # query_agent = FunctionAgent(
+    #     name="query_agent",
+    #     description="Specialized agent for fast information retrieval and query processing.",
+    #     system_prompt=prompts.RAG_SYSTEM_PROMPT,
+    #     tools=[query_engine_tool],
+    #     can_handoff_to=[],
+    #     llm=Settings.llm,
+    # )
+
+    # # Configure the workflow with optimized settings
+    # agent_workflow = AgentWorkflow(
+    #     agents=[add_data_agent, query_agent],
+    #     root_agent="add_data_agent",
+    #     # Define a custom handoff prompt that's more concise
+    #     handoff_prompt="""Useful for handing off to another agent.
+    # Hand off to the appropriate specialized agent when needed:
+
+    # {agent_info}
+
+    # Hand off immediately without explanation or thinking steps.
+    # """,
+    #     # Use a minimal state prompt to reduce token usage
+    #     state_prompt="""State: {state}
+    # Query: {msg}""",
+    #     # Configure with a timeout to prevent hanging
+    # )
+    unified_agent = FunctionAgent(
+        name="unified_agent",
+        description="Agent handling both explicit data-saving requests and general queries.",
         system_prompt=(
-            "# Data Saving Agent\n\n"
-            "You are a specialized agent focused exclusively on explicitly requested save operations. "
-            "Respond concisely and use tools only when the user clearly instructs to save information.\n\n"
-
-            "## Core Responsibilities\n"
-            "1. Save user-provided information upon explicit request.\n"
-            "2. Save retrieved information explicitly requested by the user.\n\n"
-
-            "## Explicit Save Request Identification\n"
-            "- Save only if user explicitly instructs ('save this', 'remember', 'add to notes').\n"
-            "- Do NOT save if user simply asks for file location, file names, or general queries.\n"
-
-            "## Save Data Format (ALWAYS USE THIS)\n"
-            "[topic]\n"
-            "[detailed information]\n\n"
-
-            "## Quick Decision Tree\n"
-            "- Explicit save request → Extract info → Generate topic → Save\n"
-            "- Retrieval + save request ('do you know X? save it') → Query → Format → Save\n"
-            "- All other queries → Hand off immediately to query_agent\n\n"
-
-            "## Response Templates\n"
-            "- Success: 'Saved: [topic]'\n"
-            "- Failure: 'Unable to save: [reason]'\n"
-            "- Handoff: 'Let me get you that information.'\n\n"
-
-            "## Efficiency Rules\n"
-            "- Do not attempt implicit saves.\n"
-            "- Respond in one concise sentence.\n"
-            f"- Always use {note_path} as the file path.\n"
-            "- Hand off non-save queries immediately.\n"
-            "- Never ask clarifying questions."
+            "# Unified Agent\n\n"
+            "You handle both explicit save operations and general queries. "
+            "Respond concisely and choose actions quickly.\n\n"
+            "## Save Operations (explicit requests only)\n"
+            "- Trigger on clear phrases like ('save', 'remember', 'note').\n"
+            "- Always save information using provided save tool.\n\n"
+            "## General Queries\n"
+            "- If no explicit save instruction is present, quickly query using the query engine tool.\n\n"
+            "## Response Rules\n"
+            "- Explicit save → Save tool.\n"
+            "- General query → Query engine tool directly.\n"
+            "- Respond concisely without additional explanation."
         ),
         tools=[append_save_to_file, query_engine_tool],
-        can_handoff_to=["query_agent"],
         llm=Settings.llm,
     )
-    # Define a prompt for RAG operations specifically
-    query_agent = FunctionAgent(
-        name="query_agent",
-        description="Specialized agent for fast information retrieval and query processing.",
-        system_prompt=prompts.RAG_SYSTEM_PROMPT,
-        tools=[query_engine_tool],
-        can_handoff_to=[],
-        llm=Settings.llm,
-    )
-
-    # Configure the workflow with optimized settings
     agent_workflow = AgentWorkflow(
-        agents=[add_data_agent, query_agent],
-        root_agent="add_data_agent",
-        # Define a custom handoff prompt that's more concise
-        handoff_prompt="""Useful for handing off to another agent.
-    Hand off to the appropriate specialized agent when needed:
-
-    {agent_info}
-
-    Hand off immediately without explanation or thinking steps.
-    """,
-        # Use a minimal state prompt to reduce token usage
-        state_prompt="""State: {state}
-    Query: {msg}""",
-        # Configure with a timeout to prevent hanging
+        agents=[unified_agent]    
     )
 
     while websocket_open:
