@@ -541,7 +541,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
 
             # final_answer = Settings.llm.chat(messages=messages)
             print(final_answer)
-            if str(final_answer) == 'Empty Response':
+            if 'Empty Response' in final_answer:
                 await websocket.send_json({"message": "There is no provided documents. Please upload documents."})
             else:    
                 await websocket.send_json({"message": final_answer})
