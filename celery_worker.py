@@ -153,7 +153,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
             "index_type": "HNSW",
             "params": {
                 "M": 8,
-                "efConstruction": 128,
+                "efConstruction": 64,
             },
             "metric_type": "COSINE"
         }
