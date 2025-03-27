@@ -489,14 +489,14 @@ async def websocket_chat(websocket: WebSocket, token: str):
             # Human: You are an AI assistant. You are able to find answers to the questions from the contextual passage snippets provided.
             # """.strip()
 
-            response = await agent_workflow.run(chat_history=chat_history)
-            print(response)
-            final_answer = str(response)
+            # response = await agent_workflow.run(chat_history=chat_history)
+            # print(response)
+            # final_answer = str(response)
             
 
-            end_time = datetime.datetime.now()
-            print("Main function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
-            print("Total duration:", end_time - start_time)
+            # end_time = datetime.datetime.now()
+            # print("Main function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
+            # print("Total duration:", end_time - start_time)
 
 
             start_time = datetime.datetime.now()
@@ -515,15 +515,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
             print("Graph chat engine function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
             print("Total duration:", end_time - start_time)
 
-            start_time = datetime.datetime.now()
-            print("Graph query engine function started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
-
-            graph_query_response = await graph_query_engine.aquery(last_message.get("content"))
-            print("Graph query response:", str(graph_query_response))
-
-            end_time = datetime.datetime.now()
-            print("Graph chat engine function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
-            print("Total duration:", end_time - start_time)
+            final_answer = str(graph_chat_answer.response)
             # Build the user prompt by combining vector_answer and graph_response into the <context> block,
             # and including the user_input within the <question> block.
             # USER_PROMPT = f"""
