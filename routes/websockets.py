@@ -445,8 +445,6 @@ async def websocket_chat(websocket: WebSocket, token: str):
             break
 
         try:
-            start_time = datetime.datetime.now()
-            print("Main function started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
             auth_input_data = json.loads(data)
             messages = auth_input_data.get("user_input", [])
             if not isinstance(messages, list):
@@ -489,14 +487,17 @@ async def websocket_chat(websocket: WebSocket, token: str):
             # Human: You are an AI assistant. You are able to find answers to the questions from the contextual passage snippets provided.
             # """.strip()
 
-            # response = await agent_workflow.run(chat_history=chat_history)
-            # print(response)
-            # final_answer = str(response)
+            start_time = datetime.datetime.now()
+            print("Main function started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
+
+            response = await agent_workflow.run(chat_history=chat_history)
+            print(response)
+            final_answer = str(response)
             
 
-            # end_time = datetime.datetime.now()
-            # print("Main function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
-            # print("Total duration:", end_time - start_time)
+            end_time = datetime.datetime.now()
+            print("Main function ended at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
+            print("Total duration:", end_time - start_time)
 
 
             start_time = datetime.datetime.now()
@@ -534,6 +535,9 @@ async def websocket_chat(websocket: WebSocket, token: str):
             #     ChatMessage.from_str(SYSTEM_PROMPT, role=MessageRole.SYSTEM),
             #     ChatMessage.from_str(USER_PROMPT, role=MessageRole.USER),
             # ]
+            if "An error occured processing your request." in final_answer:
+                graph_chat_answer = await graph_chat_engine.achat(message=last_message.get("content"), chat_history=rest_messages)
+                final_answer = str(graph_chat_answer.response)
 
             # final_answer = Settings.llm.chat(messages=messages)
             print(final_answer)
