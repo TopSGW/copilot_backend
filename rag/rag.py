@@ -10,7 +10,7 @@ print("staring ...")
 # model_client = OpenAIChatCompletionClient(model="gpt-4o", api_key=OPENAI_API_KEY)
 
 model_client = OpenAIChatCompletionClient(
-    model="llama3.3:70b",
+    model="llava:13b",
     base_url=f"{OLLAMA_URL}/v1",
     api_key="placeholder",
     model_info={

@@ -65,7 +65,7 @@ class CustomTextNode(TextNode):
 
 # Initialize the LLM
 Settings.llm = Ollama(
-    model="llama3.3:70b",
+    model="llava:13b",
     temperature=0.3,
     request_timeout=500.0,
     base_url=OLLAMA_URL
@@ -73,7 +73,7 @@ Settings.llm = Ollama(
 
 # Define embedding model explicitly
 ollama_embedding = OllamaEmbedding(
-    model_name="mxbai-embed-large",
+    model_name="llava:13b",
     base_url=OLLAMA_URL,
     request_timeout=500.0,
     ollama_additional_kwargs={"mirostat": 0},
@@ -99,7 +99,7 @@ def process_image_with_ollama(image_path, prompt, ollama_url):
     
     # Prepare the request payload
     payload = {
-        "model": "llama3.2-vision:90b",
+        "model": "llava:13b",
         "messages": [
             {
                 "role": "user",

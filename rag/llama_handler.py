@@ -74,7 +74,7 @@ class LlamaHandler:
                 # The response structure is assumed to follow OpenAI's format.
                 return data["choices"][0]["message"]["content"]
 
-    async def aemb_text(self, text, model="llama3.3:70b"):
+    async def aemb_text(self, text, model="llava:13b"):
         # NOTE: As of now, the embeddings API is not available in Ollama's compatibility layer.
         # Future improvements might include support for embeddings.
         raise NotImplementedError("Embeddings API is not available in Ollama's OpenAI compatibility mode.")

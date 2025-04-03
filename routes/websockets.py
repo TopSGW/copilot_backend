@@ -68,13 +68,13 @@ from config.config import OLLAMA_URL, props_schema
 #         print(f"Database '{db_name}' created successfully.")
 
 Settings.llm = Ollama(
-    model="llama3.3:70b",
+    model="llava:13b",
     temperature=0.3,
     request_timeout=500.0,
     base_url=OLLAMA_URL
 )
 Settings.embed_model = OllamaEmbedding(
-    model_name="mxbai-embed-large",
+    model_name="llava:13b",
     base_url=OLLAMA_URL,
     request_timeout=500.0,
     ollama_additional_kwargs={"mirostat": 0},
@@ -457,35 +457,6 @@ async def websocket_chat(websocket: WebSocket, token: str):
             chat_history = []
             for message in messages:
                 chat_history.append(ChatMessage(content=message.get("content"), role=message.get("role")))
-            # query_vec = colpali_manager.process_text([user_input])[0]
-
-            # search_res = milvus_manager.search(query_vec, topk=5)
-            # docs = [doc for score, _ , doc in search_res]
-            # print("docs", docs)
-            # print("Processing user input:", user_input)
-
-            # conversation = [
-            #     {
-            #         "role": "<|User|>",
-            #         "content": (
-            #             user_input
-            #         ),
-            #         "images": docs,
-            #     },
-            #     {"role": "<|Assistant|>", "content": ""}
-            # ]
-
-            # pil_images = DeepSeekpipeline.load_images(conversation)
-
-            # prepared_inputs = DeepSeekpipeline.prepare_inputs(conversation, pil_images, system_prompt=prompts.RAG_SYSTEM_PROMPT)
-
-            # vec_answer = DeepSeekpipeline.generate_response(prepared_inputs)
-
-            # print(f"{prepared_inputs['sft_format'][0]}\n{vec_answer}")
-            
-            # SYSTEM_PROMPT = """
-            # Human: You are an AI assistant. You are able to find answers to the questions from the contextual passage snippets provided.
-            # """.strip()
 
             start_time = datetime.datetime.now()
             print("Main function started at:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
@@ -542,6 +513,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
             # final_answer = Settings.llm.chat(messages=messages)
             print(final_answer)
             if 'Empty Response' in final_answer:
+                print("Sent Empty Resonse. No documents provided. Please upload documents.")
                 await websocket.send_json({"message": "There is no provided documents. Please upload documents."})
             else:    
                 await websocket.send_json({"message": final_answer})

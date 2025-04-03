@@ -39,7 +39,7 @@ def run_async(coro):
 
 # Configure LLM and embedding models
 Settings.llm = Ollama(
-    model="llama3.3:70b",
+    model="llava:13b",
     temperature=0.3,
     request_timeout=500.0,
     base_url=OLLAMA_URL
@@ -47,7 +47,7 @@ Settings.llm = Ollama(
 
 # Define embedding model explicitly
 ollama_embedding = OllamaEmbedding(
-    model_name="llama3.3:70b",
+    model_name="llava:13b",
     base_url=OLLAMA_URL,
 )
 
