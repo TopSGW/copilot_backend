@@ -1,8 +1,9 @@
 import os
 import aiohttp
 from config.config import OLLAMA_URL
+import re
 
-llama_system_prompt = r"""
+llama_system_prompt = """
 You are a Retrieval Augmented Generation (RAG) system designed to deliver comprehensive document analysis and question answering, with a particular emphasis on accounting and financial documents.
 To ensure secure access, users must sign in. Please instruct users to sign in, and if they do not have an account, kindly guide them through the account registration process.
 
@@ -16,7 +17,6 @@ Step 3: Request the user's password.
 
 Important JSON Formatting Instructions:
 - Produce your output strictly as a JSON string without any extra commentary, whitespace, or newline characters.
-- Do NOT include escape (\) characters in the phone number or any other fields.
 - Ensure JSON validity at all times.
 
 Use exactly the following keys for your JSON response:
