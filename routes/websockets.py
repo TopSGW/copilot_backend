@@ -135,7 +135,7 @@ async def websocket_auth_dialogue(websocket: WebSocket):
                     "status": False
                 })
                 continue
-            auth_data = await auth_agent.agenerate_chat_completion(messages, model="llama3.3:70b")
+            auth_data = await auth_agent.agenerate_chat_completion(messages, model="llava:13b")
             print("Auth agent returned:", auth_data)
             auth_data = json.loads(auth_data)
             action = auth_data.get("action")
