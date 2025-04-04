@@ -63,7 +63,8 @@ class LlamaHandler:
         }
         payload = {
             "model": model,
-            "messages": messages
+            "messages": messages,
+            "format": "json",
         }
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=payload, headers=headers) as response:
