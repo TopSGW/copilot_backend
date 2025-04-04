@@ -217,9 +217,8 @@ async def websocket_auth_dialogue(websocket: WebSocket):
                     "status": False
                 })
                 continue
-
-            print("Sending auth response with token.", final_msg)
             final_msg = json.loads(msg_response.chat_message.content)
+            print("Sending auth response with token.", final_msg)
             await websocket.send_json({
                 "message": final_msg.get("instruction"),
                 "token": token,
