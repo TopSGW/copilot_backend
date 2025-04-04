@@ -18,7 +18,7 @@ import nest_asyncio
 nest_asyncio.apply()
 import time
 import uuid
-from config.config import props_schema, LLAMA_MODEL, LLAMA_VISION_MODEL
+from config.config import props_schema, LLAMA_MODEL, LLAMA_VISION_MODEL, VECTOR_DB_DIMENSION
 from typing import (
     TYPE_CHECKING,
     Annotated,
@@ -158,7 +158,7 @@ def process_file_for_training(file_location: str, user_id: int, repository_id: i
         graph_vec_store = MilvusVectorStore(
             uri="http://localhost:19530", 
             collection_name=f"space_{user_id}",
-            dim=1024, 
+            dim=VECTOR_DB_DIMENSION, 
             overwrite=False,
             similarity_metric="COSINE",
             index_config=index_config,

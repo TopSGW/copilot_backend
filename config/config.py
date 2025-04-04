@@ -37,3 +37,5 @@ props_schema = """
 
 LLAMA_MODEL="llama3.3:70b"
 LLAMA_VISION_MODEL="llava:13b"
+
+VECTOR_DB_DIMENSION=1536

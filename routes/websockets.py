@@ -38,7 +38,7 @@ from nebula3.gclient.net import ConnectionPool
 from config.config import UPLOAD_DIR
 from routes.files import create_text_file, append_to_file
 import datetime
-from config.config import OLLAMA_URL, props_schema, LLAMA_MODEL
+from config.config import OLLAMA_URL, props_schema, LLAMA_MODEL, VECTOR_DB_DIMENSION
 # uri = NEO4J_HOST  # Update with your Neo4j URI
 
 # print("BOLT URI", uri)
@@ -273,7 +273,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
     graph_vec_store = MilvusVectorStore(
         uri="http://localhost:19530", 
         collection_name=f"space_{user.id}",
-        dim=1024,
+        dim=VECTOR_DB_DIMENSION,
         overwrite=False,
         metric_type="COSINE",
         index_type="IVF_FLAT",
