@@ -137,7 +137,7 @@ async def websocket_auth_dialogue(websocket: WebSocket):
                 continue
             auth_data = await auth_agent.agenerate_chat_completion(messages, model=LLAMA_MODEL)
             print("Auth agent returned:", auth_data)
-            auth_data = json.loads(auth_data)
+            auth_data = json.dumps(auth_data)
             action = auth_data.get("action")
             phone = auth_data.get("user_number") or auth_data.get("phone_number")
             password = auth_data.get("password")
