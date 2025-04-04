@@ -18,8 +18,7 @@ import nest_asyncio
 nest_asyncio.apply()
 import time
 import uuid
-from config.config import props_schema
-
+from config.config import props_schema, LLAMA_MODEL, LLAMA_VISION_MODEL
 from typing import (
     TYPE_CHECKING,
     Annotated,
@@ -65,7 +64,7 @@ class CustomTextNode(TextNode):
 
 # Initialize the LLM
 Settings.llm = Ollama(
-    model="llama3:8b",
+    model=LLAMA_MODEL,
     temperature=0.3,
     request_timeout=500.0,
     base_url=OLLAMA_URL
@@ -73,7 +72,7 @@ Settings.llm = Ollama(
 
 # Define embedding model explicitly
 ollama_embedding = OllamaEmbedding(
-    model_name="llama3:8b",
+    model_name=LLAMA_MODEL,
     base_url=OLLAMA_URL,
     request_timeout=500.0,
     ollama_additional_kwargs={"mirostat": 0},
@@ -99,7 +98,7 @@ def process_image_with_ollama(image_path, prompt, ollama_url):
     
     # Prepare the request payload
     payload = {
-        "model": "llava:13b",
+        "model": LLAMA_VISION_MODEL,
         "messages": [
             {
                 "role": "user",

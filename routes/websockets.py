@@ -38,7 +38,7 @@ from nebula3.gclient.net import ConnectionPool
 from config.config import UPLOAD_DIR
 from routes.files import create_text_file, append_to_file
 import datetime
-from config.config import OLLAMA_URL, props_schema
+from config.config import OLLAMA_URL, props_schema, LLAMA_MODEL
 # uri = NEO4J_HOST  # Update with your Neo4j URI
 
 # print("BOLT URI", uri)
@@ -68,13 +68,13 @@ from config.config import OLLAMA_URL, props_schema
 #         print(f"Database '{db_name}' created successfully.")
 
 Settings.llm = Ollama(
-    model="llama3:8b",
+    model=LLAMA_MODEL,
     temperature=0.3,
     request_timeout=500.0,
     base_url=OLLAMA_URL
 )
 Settings.embed_model = OllamaEmbedding(
-    model_name="llama3:8b",
+    model_name=LLAMA_MODEL,
     base_url=OLLAMA_URL,
     request_timeout=500.0,
     ollama_additional_kwargs={"mirostat": 0},
@@ -135,7 +135,7 @@ async def websocket_auth_dialogue(websocket: WebSocket):
                     "status": False
                 })
                 continue
-            auth_data = await auth_agent.agenerate_chat_completion(messages, model="llama3:8b")
+            auth_data = await auth_agent.agenerate_chat_completion(messages, model=LLAMA_MODEL)
             print("Auth agent returned:", auth_data)
             auth_data = json.loads(auth_data)
             action = auth_data.get("action")

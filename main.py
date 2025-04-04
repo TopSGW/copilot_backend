@@ -17,7 +17,7 @@ from auth import get_current_user, UserOut
 from routes.websockets import websocket_auth_dialogue, websocket_chat
 from routes.repositories import router as repositories_router
 from routes.files import router as files_router
-from config.config import OLLAMA_URL
+from config.config import OLLAMA_URL, LLAMA_MODEL, LLAMA_VISION_MODEL
 # Configure logging
 uvloop.install()
 
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 # Configuration - consider using environment variables
 OLLAMA_BASE_URL = f"{OLLAMA_URL}/api"
-OLLAMA_MODELS = ["llava:13b", "llama3:8b"]
+OLLAMA_MODELS = [LLAMA_MODEL, LLAMA_VISION_MODEL]
 CHECK_INTERVAL = 240  # 4 minutes
 TIMEOUT = 200  # 200 seconds timeout for requests
 
