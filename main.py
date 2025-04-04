@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 # Configuration - consider using environment variables
 OLLAMA_BASE_URL = f"{OLLAMA_URL}/api"
-OLLAMA_MODELS = ["llava:13b"]
+OLLAMA_MODELS = ["llava:13b", "llama3:8b"]
 CHECK_INTERVAL = 240  # 4 minutes
 TIMEOUT = 200  # 200 seconds timeout for requests
 

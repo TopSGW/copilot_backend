@@ -65,7 +65,7 @@ class CustomTextNode(TextNode):
 
 # Initialize the LLM
 Settings.llm = Ollama(
-    model="llava:13b",
+    model="llama3:8b",
     temperature=0.3,
     request_timeout=500.0,
     base_url=OLLAMA_URL
@@ -73,7 +73,7 @@ Settings.llm = Ollama(
 
 # Define embedding model explicitly
 ollama_embedding = OllamaEmbedding(
-    model_name="llava:13b",
+    model_name="llama3:8b",
     base_url=OLLAMA_URL,
     request_timeout=500.0,
     ollama_additional_kwargs={"mirostat": 0},

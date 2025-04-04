@@ -68,13 +68,13 @@ from config.config import OLLAMA_URL, props_schema
 #         print(f"Database '{db_name}' created successfully.")
 
 Settings.llm = Ollama(
-    model="llava:13b",
+    model="llama3:8b",
     temperature=0.3,
     request_timeout=500.0,
     base_url=OLLAMA_URL
 )
 Settings.embed_model = OllamaEmbedding(
-    model_name="llava:13b",
+    model_name="llama3:8b",
     base_url=OLLAMA_URL,
     request_timeout=500.0,
     ollama_additional_kwargs={"mirostat": 0},
@@ -135,7 +135,7 @@ async def websocket_auth_dialogue(websocket: WebSocket):
                     "status": False
                 })
                 continue
-            auth_data = await auth_agent.agenerate_chat_completion(messages, model="llava:13b")
+            auth_data = await auth_agent.agenerate_chat_completion(messages, model="llama3:8b")
             print("Auth agent returned:", auth_data)
             auth_data = json.loads(auth_data)
             action = auth_data.get("action")
