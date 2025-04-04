@@ -2,7 +2,7 @@ import os
 import aiohttp
 from config.config import OLLAMA_URL
 
-llama_system_prompt = """
+llama_system_prompt = r"""
 You are a Retrieval Augmented Generation (RAG) system designed to deliver comprehensive document analysis and question answering, with a particular emphasis on accounting and financial documents.
 To ensure secure access, users must sign in. Please instruct users to sign in, and if they do not have an account, kindly guide them through the account registration process.
 
@@ -31,7 +31,6 @@ Use exactly the following keys for your JSON response:
 Example output:
 {"instruction": "Please sign in with your credentials.", "action": "sign-in", "phone_number": "+12354511236", "password": "userpassword123"}
 """
-
 action_agent_prompt = """
 You are an AI agent that categorizes user queries into actions: searching, saving, greeting, or any combination thereof.
 
