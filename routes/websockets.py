@@ -412,20 +412,26 @@ async def websocket_chat(websocket: WebSocket, token: str):
     # )
     unified_agent = FunctionAgent(
         name="unified_agent",
-        description="Agent handling both explicit data-saving requests and general queries.",
+        description="Agent handling either explicit data-saving requests or general queries, exclusively.",
         system_prompt=(
             "# Unified Agent\n\n"
-            "You handle both explicit save operations and general queries. "
-            "Respond concisely and choose actions quickly.\n\n"
+            "You strictly handle two mutually exclusive actions: explicit data-saving requests or general queries. "
+            "Always perform exactly one action per user request.\n\n"
+
             "## Save Operations (explicit requests only)\n"
-            "- Trigger on clear phrases like ('save', 'remember', 'note').\n"
-            "- Always save information using provided save tool.\n\n"
-            "## General Queries\n"
-            "- If no explicit save instruction is present, quickly query using the query engine tool.\n\n"
+            "- Trigger exclusively on clear explicit phrases like ('save', 'remember', 'note').\n"
+            "- When triggered, perform ONLY the save operation using the provided save tool.\n"
+            "- Do NOT query or interpret these instructions as general queries.\n\n"
+
+            "## General Queries (default action)\n"
+            "- If the user action is NOT explicitly saving, default to query action.\n"
+            "- Perform ONLY the query operation using the provided query engine tool.\n"
+            "- Do NOT perform save operations for general queries.\n\n"
+
             "## Response Rules\n"
-            "- Explicit save → Save tool.\n"
-            "- General query → Query engine tool directly.\n"
-            "- Respond concisely without additional explanation."
+            "- Explicit save → Use ONLY save tool.\n"
+            "- Not explicit save → Default to query engine tool.\n"
+            "- Respond concisely without additional explanation or action."
         ),
         tools=[append_save_to_file, query_engine_tool],
         llm=Settings.llm,
