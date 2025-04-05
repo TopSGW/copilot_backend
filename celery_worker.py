@@ -10,7 +10,7 @@ from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.graph_stores.nebula import NebulaPropertyGraphStore
 from pdf2image import convert_from_path
 import ollama
-from config.config import OLLAMA_URL
+from config.config import OLLAMA_URL, EMBED_MODEL
 import requests
 import json
 import base64
@@ -72,7 +72,7 @@ Settings.llm = Ollama(
 
 # Define embedding model explicitly
 ollama_embedding = OllamaEmbedding(
-    model_name=LLAMA_MODEL,
+    model_name=EMBED_MODEL,
     base_url=OLLAMA_URL,
     request_timeout=500.0,
     ollama_additional_kwargs={"mirostat": 0},

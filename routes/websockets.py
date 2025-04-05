@@ -38,7 +38,7 @@ from nebula3.gclient.net import ConnectionPool
 from config.config import UPLOAD_DIR
 from routes.files import create_text_file, append_to_file
 import datetime
-from config.config import OLLAMA_URL, props_schema, LLAMA_MODEL, VECTOR_DB_DIMENSION
+from config.config import OLLAMA_URL, props_schema, LLAMA_MODEL, VECTOR_DB_DIMENSION, EMBED_MODEL
 # uri = NEO4J_HOST  # Update with your Neo4j URI
 
 # print("BOLT URI", uri)
@@ -74,7 +74,7 @@ Settings.llm = Ollama(
     base_url=OLLAMA_URL
 )
 Settings.embed_model = OllamaEmbedding(
-    model_name=LLAMA_MODEL,
+    model_name=EMBED_MODEL,
     base_url=OLLAMA_URL,
     request_timeout=500.0,
     ollama_additional_kwargs={"mirostat": 0},
