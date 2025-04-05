@@ -17,7 +17,7 @@ NEO4J_HOST = os.getenv("NEO4J_HOST", "bolt://localhost:7687")
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-OLLAMA_URL = "http://69.30.85.137:22059"
+OLLAMA_URL = "http://69.30.85.130:22106"
 
 props_schema = """
     `page_label` STRING,
@@ -37,5 +37,5 @@ props_schema = """
 
 LLAMA_MODEL="llama3.3:70b"
 LLAMA_VISION_MODEL="llava:13b"
-
+EMBED_MODEL="nomic-embed-text"
 VECTOR_DB_DIMENSION=1536
